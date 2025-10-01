@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Calendar Planner</string>
+    <string name="notification_channel_name">Planner Alerts</string>
+    <string name="notification_channel_description">Reminders for scheduled planner tasks.</string>
+</resources>
