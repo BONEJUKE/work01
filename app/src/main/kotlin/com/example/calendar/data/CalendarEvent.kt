@@ -1,9 +1,13 @@
 package com.example.calendar.data
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 import java.time.LocalDateTime
 import java.util.UUID
 
+@Entity(tableName = "calendar_events")
 data class CalendarEvent(
+    @PrimaryKey
     val id: UUID = UUID.randomUUID(),
     val title: String,
     val description: String? = null,
