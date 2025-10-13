@@ -1,14 +1,3 @@
-pluginManagement {
-    repositories {
-        gradlePluginPortal()
-        mavenCentral()
-    }
-}
+rootProject.name = "CalendarPlanner"
 
-dependencyResolutionManagement {
-    repositories {
-        mavenCentral()
-    }
-}
-
-rootProject.name = "calendar-domain"
+include(":app")
