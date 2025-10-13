@@ -22,6 +22,16 @@ These files are intended as a foundation for bootstrapping a full Android Studio
 2. Wire the domain classes to persistence (Room, Realm, etc.) and notification APIs.
 3. Implement UI layers (Jetpack Compose or XML) guided by the UX flows in the documentation.
 
+## Domain logic tests
+
+Run the Kotlin domain unit tests with the system Gradle installation:
+
+```bash
+gradle test --console=plain --no-daemon
+```
+
+The repository omits the Gradle wrapper binaries to avoid committing unsupported binary artifacts, so invoking `gradle` directly ensures CI can execute the same verification task.
+
 ## Next steps
 
 - Integrate the domain logic with Android frameworks (ViewModel, WorkManager, AlarmManager).
