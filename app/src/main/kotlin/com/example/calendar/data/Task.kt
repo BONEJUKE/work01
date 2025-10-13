@@ -1,5 +1,8 @@
 package com.example.calendar.data
 
+import androidx.room.ColumnInfo
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.UUID
@@ -7,12 +10,15 @@ import java.util.UUID
 /**
  * Represents a to-do item that can appear within daily, weekly, or monthly agenda views.
  */
+@Entity(tableName = "tasks")
 data class Task(
+    @PrimaryKey
     val id: UUID = UUID.randomUUID(),
     val title: String,
     val description: String? = null,
     val status: TaskStatus = TaskStatus.Pending,
     val dueAt: LocalDateTime? = null,
+    @ColumnInfo(name = "period")
     val period: AgendaPeriod,
     val reminders: List<Reminder> = emptyList(),
     val tags: Set<String> = emptySet()
