@@ -34,8 +34,19 @@ class ReminderOrchestrator(
         )
     }
 
-    fun cancelForTask(task: Task) = scheduler.cancelReminder("task-${task.id}")
-    fun cancelForEvent(event: CalendarEvent) = scheduler.cancelReminder("event-${event.id}")
+    fun cancelForTask(task: Task) {
+        cancelScheduledReminders(
+            baseId = "task-${task.id}",
+            reminders = task.reminders
+        )
+    }
+
+    fun cancelForEvent(event: CalendarEvent) {
+        cancelScheduledReminders(
+            baseId = "event-${event.id}",
+            reminders = event.reminders
+        )
+    }
 
     private fun scheduleReminders(
         baseId: String,
@@ -61,6 +72,15 @@ class ReminderOrchestrator(
                     )
                 )
             }
+        }
+    }
+
+    private fun cancelScheduledReminders(
+        baseId: String,
+        reminders: List<Reminder>
+    ) {
+        reminders.indices.forEach { index ->
+            scheduler.cancelReminder("$baseId-$index")
         }
     }
 }
