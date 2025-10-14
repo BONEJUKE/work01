@@ -11,16 +11,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -28,6 +31,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -54,11 +58,15 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 private val DayFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
 private val WeekFormatter = DateTimeFormatter.ofPattern("MMM d", Locale.getDefault())
 private val MonthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())
+private val DateTimeDetailFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy · h:mm a", Locale.getDefault())
+private val TimeOnlyFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault())
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AgendaRoute(
     viewModel: AgendaViewModel,
@@ -85,6 +93,60 @@ fun AgendaRoute(
 
     LaunchedEffect(currentPeriod) {
         viewModel.setPeriod(currentPeriod)
+    }
+
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val coroutineScope = rememberCoroutineScope()
+    var sheetContent by remember { mutableStateOf<AgendaSheetContent?>(null) }
+
+    val openTaskSheet: (Task) -> Unit = { task ->
+        sheetContent = AgendaSheetContent.TaskDetail(task)
+        onTaskClick(task)
+    }
+    val openEventSheet: (CalendarEvent) -> Unit = { event ->
+        sheetContent = AgendaSheetContent.EventDetail(event)
+        onEventClick(event)
+    }
+
+    val hideSheet: () -> Unit = {
+        coroutineScope.launch {
+            try {
+                sheetState.hide()
+            } finally {
+                sheetContent = null
+            }
+        }
+    }
+
+    LaunchedEffect(sheetContent) {
+        if (sheetContent != null) {
+            sheetState.show()
+        }
+    }
+
+    LaunchedEffect(uiState.snapshot, sheetContent) {
+        val snapshot = uiState.snapshot
+        val currentContent = sheetContent
+        if (snapshot != null && currentContent != null) {
+            when (currentContent) {
+                is AgendaSheetContent.TaskDetail -> {
+                    val updated = snapshot.tasks.find { it.id == currentContent.task.id }
+                    if (updated != null && updated != currentContent.task) {
+                        sheetContent = AgendaSheetContent.TaskDetail(updated)
+                    } else if (updated == null) {
+                        hideSheet()
+                    }
+                }
+                is AgendaSheetContent.EventDetail -> {
+                    val updated = snapshot.events.find { it.id == currentContent.event.id }
+                    if (updated != null && updated != currentContent.event) {
+                        sheetContent = AgendaSheetContent.EventDetail(updated)
+                    } else if (updated == null) {
+                        hideSheet()
+                    }
+                }
+            }
+        }
     }
 
     AgendaScreen(
@@ -139,10 +201,26 @@ fun AgendaRoute(
             }
         },
         onToggleTask = viewModel::toggleTask,
-        onTaskClick = onTaskClick,
-        onEventClick = onEventClick,
+        onTaskClick = openTaskSheet,
+        onEventClick = openEventSheet,
         period = currentPeriod
     )
+
+    sheetContent?.let { content ->
+        ModalBottomSheet(
+            onDismissRequest = hideSheet,
+            sheetState = sheetState
+        ) {
+            AgendaDetailSheet(
+                content = content,
+                onToggleTask = { task ->
+                    viewModel.toggleTask(task)
+                    sheetContent = AgendaSheetContent.TaskDetail(task.toggleCompletion())
+                },
+                onClose = hideSheet
+            )
+        }
+    }
 }
 
 private fun monthFromDay(dayIso: String): YearMonth {
@@ -402,7 +480,7 @@ private fun EventCard(event: CalendarEvent, onClick: () -> Unit) {
                 )
             }
             Text(
-                text = "${event.start.format(DayFormatter)} - ${event.end.format(DayFormatter)}",
+                text = eventTimeRange(event),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -464,7 +542,7 @@ private fun TaskRow(
             }
             task.dueAt?.let { dueAt ->
                 Text(
-                    text = "Due ${dueAt.format(DayFormatter)}",
+                    text = "Due ${dueAt.format(DateTimeDetailFormatter)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -472,6 +550,115 @@ private fun TaskRow(
         }
         TextButton(onClick = onTaskClick) {
             Text("Open")
+        }
+    }
+}
+
+private sealed interface AgendaSheetContent {
+    data class TaskDetail(val task: Task) : AgendaSheetContent
+    data class EventDetail(val event: CalendarEvent) : AgendaSheetContent
+}
+
+@Composable
+private fun AgendaDetailSheet(
+    content: AgendaSheetContent,
+    onToggleTask: (Task) -> Unit,
+    onClose: () -> Unit
+) {
+    when (content) {
+        is AgendaSheetContent.TaskDetail -> TaskDetailSheet(
+            task = content.task,
+            onToggleTask = onToggleTask,
+            onClose = onClose
+        )
+        is AgendaSheetContent.EventDetail -> EventDetailSheet(
+            event = content.event,
+            onClose = onClose
+        )
+    }
+}
+
+@Composable
+private fun TaskDetailSheet(
+    task: Task,
+    onToggleTask: (Task) -> Unit,
+    onClose: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = task.title,
+            style = MaterialTheme.typography.titleLarge
+        )
+        task.description?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        task.dueAt?.let { dueAt ->
+            Text(
+                text = "Due ${dueAt.format(DateTimeDetailFormatter)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Text(
+            text = "Status: ${task.status.displayName()}",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Button(onClick = { onToggleTask(task) }) {
+                Text(task.status.toggleLabel())
+            }
+            TextButton(onClick = onClose) {
+                Text("Close")
+            }
+        }
+    }
+}
+
+@Composable
+private fun EventDetailSheet(
+    event: CalendarEvent,
+    onClose: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = event.title,
+            style = MaterialTheme.typography.titleLarge
+        )
+        Text(
+            text = eventTimeRange(event),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        event.location?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        event.description?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        TextButton(onClick = onClose) {
+            Text("Close")
         }
     }
 }
@@ -497,6 +684,29 @@ private fun AgendaError(error: Throwable) {
 private fun AgendaEmptyState() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text("No agenda items available")
+    }
+}
+
+private fun TaskStatus.displayName(): String = when (this) {
+    TaskStatus.Pending -> "Pending"
+    TaskStatus.InProgress -> "In progress"
+    TaskStatus.Completed -> "Completed"
+}
+
+private fun TaskStatus.toggleLabel(): String = when (this) {
+    TaskStatus.Completed -> "Mark as pending"
+    else -> "Mark as complete"
+}
+
+private fun eventTimeRange(event: CalendarEvent): String {
+    val sameDay = event.start.toLocalDate() == event.end.toLocalDate()
+    return if (sameDay) {
+        val date = event.start.format(DayFormatter)
+        val startTime = event.start.format(TimeOnlyFormatter)
+        val endTime = event.end.format(TimeOnlyFormatter)
+        "$date · $startTime – $endTime"
+    } else {
+        "${event.start.format(DateTimeDetailFormatter)} – ${event.end.format(DateTimeDetailFormatter)}"
     }
 }
 
