@@ -21,6 +21,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.MaterialTheme
@@ -298,9 +299,15 @@ fun AgendaScreen(
     onMonthDaySelected: (LocalDate) -> Unit,
     focusedDay: LocalDate,
     period: AgendaPeriod,
+    snackbarHostState: SnackbarHostState,
+    onQuickAddClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        floatingActionButton = {
+            AgendaFab(onClick = onQuickAddClick)
+        },
         topBar = {
             AgendaTopBar(
                 period = period,
@@ -342,7 +349,29 @@ fun AgendaScreen(
                 }
             }
         }
+    )
+}
+
+@Composable
+private fun QuickAddTypeRow(
+    selectedType: QuickAddType,
+    onSelectType: (QuickAddType) -> Unit
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        QuickAddType.values().forEach { type ->
+            FilterChip(
+                selected = selectedType == type,
+                onClick = { onSelectType(type) },
+                label = { Text(if (type == QuickAddType.Task) "할 일" else "이벤트") }
+            )
+        }
     }
+}
+
+private fun periodSummary(period: AgendaPeriod): String = when (period) {
+    is AgendaPeriod.Day -> "하루"
+    is AgendaPeriod.Week -> "한 주"
+    is AgendaPeriod.Month -> "한 달"
 }
 
 @Composable
@@ -819,6 +848,95 @@ private fun EventCard(event: CalendarEvent, onClick: () -> Unit) {
                 )
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeableTaskRow(
+    task: Task,
+    onToggleTask: () -> Unit,
+    onTaskClick: () -> Unit
+) {
+    val dismissState = rememberSwipeToDismissBoxState { value ->
+        if (value != SwipeToDismissBoxValue.Settled) {
+            onToggleTask()
+            true
+        } else {
+            false
+        }
+    }
+    val actionLabel = if (task.status.isDone()) "Mark as pending" else "Mark as complete"
+    val containerColor = if (task.status.isDone()) {
+        MaterialTheme.colorScheme.tertiaryContainer
+    } else {
+        MaterialTheme.colorScheme.primaryContainer
+    }
+    val contentColor = if (task.status.isDone()) {
+        MaterialTheme.colorScheme.onTertiaryContainer
+    } else {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    }
+
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            DismissBackground(
+                label = actionLabel,
+                containerColor = containerColor,
+                contentColor = contentColor
+            )
+        },
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = true
+    ) {
+        TaskRow(
+            task = task,
+            onToggleTask = onToggleTask,
+            onTaskClick = onTaskClick
+        )
+    }
+
+    LaunchedEffect(task.status) {
+        dismissState.snapTo(SwipeToDismissBoxValue.Settled)
+    }
+}
+
+@Composable
+private fun DismissBackground(
+    label: String,
+    containerColor: Color,
+    contentColor: Color
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(containerColor)
+            .padding(horizontal = 24.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = label, color = contentColor, style = MaterialTheme.typography.bodyMedium)
+        Text(text = label, color = contentColor, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun EventTimeBadge(text: String) {
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        shape = RoundedCornerShape(999.dp),
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+        )
     }
 }
 

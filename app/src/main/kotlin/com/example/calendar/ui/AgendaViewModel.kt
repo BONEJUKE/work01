@@ -9,7 +9,9 @@ import com.example.calendar.data.Task
 import com.example.calendar.data.TaskRepository
 import com.example.calendar.scheduler.AgendaAggregator
 import com.example.calendar.scheduler.AgendaSnapshot
-import com.example.calendar.reminder.ReminderOrchestrator
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -100,7 +102,8 @@ class AgendaViewModel(
 data class AgendaUiState(
     val snapshot: AgendaSnapshot? = null,
     val isLoading: Boolean = true,
-    val error: Throwable? = null
+    val error: Throwable? = null,
+    val userMessage: AgendaUserMessage? = null
 ) {
     fun updateTask(task: Task): AgendaUiState {
         val current = snapshot ?: return this
@@ -120,3 +123,7 @@ data class AgendaUiState(
         return copy(snapshot = current.copy(events = current.events.filterNot { it.id == id }))
     }
 }
+
+private val DEFAULT_TASK_TIME: LocalTime = LocalTime.of(9, 0)
+private val DEFAULT_EVENT_START: LocalTime = LocalTime.of(9, 0)
+private const val DEFAULT_EVENT_DURATION_HOURS = 1L
