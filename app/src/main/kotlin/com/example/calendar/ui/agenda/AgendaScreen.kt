@@ -26,6 +26,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -49,8 +50,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
@@ -584,6 +583,109 @@ private fun PeriodControls(
 @Composable
 private fun AgendaSnapshotContent(
     snapshot: AgendaSnapshot,
+    selectedTab: AgendaTab,
+    onToggleTask: (Task) -> Unit,
+    onTaskClick: (Task) -> Unit,
+    onEventClick: (CalendarEvent) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    when (selectedTab) {
+        AgendaTab.Daily -> DayAgenda(
+            snapshot = snapshot,
+            onToggleTask = onToggleTask,
+            onTaskClick = onTaskClick,
+            onEventClick = onEventClick,
+            modifier = modifier
+        )
+
+        AgendaTab.Weekly -> WeekAgenda(
+            snapshot = snapshot,
+            onToggleTask = onToggleTask,
+            onTaskClick = onTaskClick,
+            onEventClick = onEventClick,
+            modifier = modifier
+        )
+
+        AgendaTab.Monthly -> MonthAgenda(
+            snapshot = snapshot,
+            onToggleTask = onToggleTask,
+            onTaskClick = onTaskClick,
+            onEventClick = onEventClick,
+            modifier = modifier
+        )
+    }
+}
+
+@Composable
+private fun DayAgenda(
+    snapshot: AgendaSnapshot,
+    onToggleTask: (Task) -> Unit,
+    onTaskClick: (Task) -> Unit,
+    onEventClick: (CalendarEvent) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AgendaList(
+        snapshot = snapshot,
+        summaryTitle = "Daily overview",
+        summaryPeriod = DayFormatter.format(snapshot.rangeStart),
+        onToggleTask = onToggleTask,
+        onTaskClick = onTaskClick,
+        onEventClick = onEventClick,
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun WeekAgenda(
+    snapshot: AgendaSnapshot,
+    onToggleTask: (Task) -> Unit,
+    onTaskClick: (Task) -> Unit,
+    onEventClick: (CalendarEvent) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val periodLabel = buildString {
+        append(WeekFormatter.format(snapshot.rangeStart))
+        snapshot.rangeEnd.takeIf { it != snapshot.rangeStart }?.let { end ->
+            append(" – ")
+            append(WeekFormatter.format(end))
+        }
+    }
+    AgendaList(
+        snapshot = snapshot,
+        summaryTitle = "Weekly focus",
+        summaryPeriod = periodLabel,
+        onToggleTask = onToggleTask,
+        onTaskClick = onTaskClick,
+        onEventClick = onEventClick,
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun MonthAgenda(
+    snapshot: AgendaSnapshot,
+    onToggleTask: (Task) -> Unit,
+    onTaskClick: (Task) -> Unit,
+    onEventClick: (CalendarEvent) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val monthLabel = MonthFormatter.format(snapshot.rangeStart)
+    AgendaList(
+        snapshot = snapshot,
+        summaryTitle = "Monthly outlook",
+        summaryPeriod = monthLabel,
+        onToggleTask = onToggleTask,
+        onTaskClick = onTaskClick,
+        onEventClick = onEventClick,
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun AgendaList(
+    snapshot: AgendaSnapshot,
+    summaryTitle: String,
+    summaryPeriod: String,
     onToggleTask: (Task) -> Unit,
     onTaskClick: (Task) -> Unit,
     onEventClick: (CalendarEvent) -> Unit,
@@ -595,7 +697,11 @@ private fun AgendaSnapshotContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            AgendaSummaryCard(snapshot)
+            AgendaSummaryCard(
+                title = summaryTitle,
+                period = summaryPeriod,
+                snapshot = snapshot
+            )
         }
         item {
             SectionTitle(text = "Events")
@@ -625,12 +731,20 @@ private fun AgendaSnapshotContent(
 }
 
 @Composable
-private fun AgendaSummaryCard(snapshot: AgendaSnapshot) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+private fun AgendaSummaryCard(
+    title: String,
+    period: String,
+    snapshot: AgendaSnapshot,
+    modifier: Modifier = Modifier
+) {
+    Card(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
+            Text(text = title, style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Overview",
-                style = MaterialTheme.typography.titleMedium
+                text = period,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
@@ -671,12 +785,20 @@ private fun EventCard(event: CalendarEvent, onClick: () -> Unit) {
         onClick = onClick
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = event.title,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = event.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                EventTimeBadge(text = eventTimeRange(event))
+            }
             event.description?.let {
                 Text(
                     text = it,
@@ -771,6 +893,95 @@ private fun DismissBackground(
 }
 
 @Composable
+private fun EventTimeBadge(text: String) {
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        shape = RoundedCornerShape(999.dp),
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeableTaskRow(
+    task: Task,
+    onToggleTask: () -> Unit,
+    onTaskClick: () -> Unit
+) {
+    val dismissState = rememberSwipeToDismissBoxState { value ->
+        if (value != SwipeToDismissBoxValue.Settled) {
+            onToggleTask()
+            true
+        } else {
+            false
+        }
+    }
+    val actionLabel = if (task.status.isDone()) "Mark as pending" else "Mark as complete"
+    val containerColor = if (task.status.isDone()) {
+        MaterialTheme.colorScheme.tertiaryContainer
+    } else {
+        MaterialTheme.colorScheme.primaryContainer
+    }
+    val contentColor = if (task.status.isDone()) {
+        MaterialTheme.colorScheme.onTertiaryContainer
+    } else {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    }
+
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            DismissBackground(
+                label = actionLabel,
+                containerColor = containerColor,
+                contentColor = contentColor
+            )
+        },
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = true
+    ) {
+        TaskRow(
+            task = task,
+            onToggleTask = onToggleTask,
+            onTaskClick = onTaskClick
+        )
+    }
+
+    LaunchedEffect(task.status) {
+        dismissState.snapTo(SwipeToDismissBoxValue.Settled)
+    }
+}
+
+@Composable
+private fun DismissBackground(
+    label: String,
+    containerColor: Color,
+    contentColor: Color
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(containerColor)
+            .padding(horizontal = 24.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = label, color = contentColor, style = MaterialTheme.typography.bodyMedium)
+        Text(text = label, color = contentColor, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
 private fun TaskRow(
     task: Task,
     onToggleTask: () -> Unit,
@@ -780,12 +991,9 @@ private fun TaskRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
+            .clickable(onClick = onTaskClick)
             .semantics(mergeDescendants = true) {
                 contentDescription = task.accessibleDescription()
-                onClick(label = "Open task details") {
-                    onTaskClick()
-                    true
-                }
             },
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -802,12 +1010,20 @@ private fun TaskRow(
                 .padding(start = 12.dp)
                 .weight(1f)
         ) {
-            Text(
-                text = task.title,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = task.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                TaskStatusBadge(status = task.status)
+            }
             task.description?.let {
                 Text(
                     text = it,
@@ -824,8 +1040,172 @@ private fun TaskRow(
                 )
             }
         }
-        TextButton(onClick = onTaskClick) {
-            Text("Open")
+    }
+}
+
+@Composable
+private fun TaskStatusBadge(status: TaskStatus) {
+    val colors = MaterialTheme.colorScheme
+    val (containerColor, contentColor) = when (status) {
+        TaskStatus.Pending -> colors.secondaryContainer to colors.onSecondaryContainer
+        TaskStatus.InProgress -> colors.tertiaryContainer to colors.onTertiaryContainer
+        TaskStatus.Completed -> colors.primaryContainer to colors.onPrimaryContainer
+    }
+    Surface(
+        color = containerColor,
+        contentColor = contentColor,
+        shape = RoundedCornerShape(999.dp),
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp
+    ) {
+        Text(
+            text = status.displayName(),
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+        )
+    }
+}
+
+private sealed interface AgendaSheetContent {
+    data class TaskDetail(val task: Task) : AgendaSheetContent
+    data class EventDetail(val event: CalendarEvent) : AgendaSheetContent
+}
+
+@Composable
+private fun AgendaDetailSheet(
+    content: AgendaSheetContent,
+    onToggleTask: (Task) -> Unit,
+    onDeleteTask: (Task) -> Unit,
+    onDeleteEvent: (CalendarEvent) -> Unit,
+    onEditTask: (Task) -> Unit,
+    onEditEvent: (CalendarEvent) -> Unit,
+    onClose: () -> Unit
+) {
+    when (content) {
+        is AgendaSheetContent.TaskDetail -> TaskDetailSheet(
+            task = content.task,
+            onToggleTask = onToggleTask,
+            onDeleteTask = onDeleteTask,
+            onEditTask = onEditTask,
+            onClose = onClose
+        )
+        is AgendaSheetContent.EventDetail -> EventDetailSheet(
+            event = content.event,
+            onDeleteEvent = onDeleteEvent,
+            onEditEvent = onEditEvent,
+            onClose = onClose
+        )
+    }
+}
+
+@Composable
+private fun TaskDetailSheet(
+    task: Task,
+    onToggleTask: (Task) -> Unit,
+    onDeleteTask: (Task) -> Unit,
+    onEditTask: (Task) -> Unit,
+    onClose: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = task.title,
+            style = MaterialTheme.typography.titleLarge
+        )
+        task.description?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        task.dueAt?.let { dueAt ->
+            Text(
+                text = "Due ${dueAt.format(DateTimeDetailFormatter)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Text(
+            text = "Status: ${task.status.displayName()}",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Button(onClick = { onToggleTask(task) }) {
+            Text(task.status.toggleLabel())
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+        ) {
+            OutlinedButton(onClick = { onEditTask(task) }) {
+                Text("Edit")
+            }
+            TextButton(
+                onClick = { onDeleteTask(task) },
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+            ) {
+                Text("Delete")
+            }
+            TextButton(onClick = onClose) {
+                Text("Close")
+            }
+        }
+    }
+}
+
+@Composable
+private fun EventDetailSheet(
+    event: CalendarEvent,
+    onDeleteEvent: (CalendarEvent) -> Unit,
+    onEditEvent: (CalendarEvent) -> Unit,
+    onClose: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = event.title,
+            style = MaterialTheme.typography.titleLarge
+        )
+        Text(
+            text = eventTimeRange(event),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        event.location?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        event.description?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+        ) {
+            OutlinedButton(onClick = { onEditEvent(event) }) {
+                Text("Edit")
+            }
+            TextButton(
+                onClick = { onDeleteEvent(event) },
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+            ) {
+                Text("Delete")
+            }
+            TextButton(onClick = onClose) {
+                Text("Close")
+            }
         }
     }
 }
