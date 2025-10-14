@@ -10,8 +10,11 @@ import com.example.calendar.reminder.ReminderOrchestrator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 
 class AgendaViewModel(
@@ -45,17 +48,30 @@ class AgendaViewModel(
     }
 
     private fun observePeriod() {
-        _period.onEach { period ->
-            aggregator.observeAgenda(period)
-                .onEach { snapshot ->
-                    _state.value = _state.value.copy(
-                        snapshot = snapshot,
-                        isLoading = false,
-                        error = null
-                    )
-                }
-                .launchIn(viewModelScope)
-        }.launchIn(viewModelScope)
+        _period
+            .flatMapLatest { period ->
+                aggregator.observeAgenda(period)
+                    .onStart {
+                        _state.value = _state.value.copy(
+                            isLoading = true,
+                            error = null
+                        )
+                    }
+            }
+            .catch { throwable ->
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    error = throwable
+                )
+            }
+            .onEach { snapshot ->
+                _state.value = _state.value.copy(
+                    snapshot = snapshot,
+                    isLoading = false,
+                    error = null
+                )
+            }
+            .launchIn(viewModelScope)
     }
 }
 
