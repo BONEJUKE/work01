@@ -39,6 +39,14 @@ These files are intended as a foundation for bootstrapping a full Android Studio
 2. 도메인 클래스를 영속성 계층(Room, Realm 등) 및 알림 API와 연결합니다.
 3. 문서에 수록된 UX 흐름을 기반으로 Jetpack Compose 또는 XML UI 레이어를 구현합니다.
 
+### Build tooling (빌드 도구)
+
+- The prototype does **not** ship with a Gradle wrapper. Generate one from a local Gradle installation with `gradle wrapper --gradle-version 8.5` (or the version your Android Studio install expects) before running `./gradlew` commands.
+- Alternatively, open the project with Android Studio and let it create/update the wrapper during the first Gradle sync.
+
+- 현재 프로토타입에는 Gradle 래퍼(`gradlew`)가 포함되어 있지 않습니다. `gradle wrapper --gradle-version 8.5`(또는 Android Studio가 요구하는 버전)를 로컬 Gradle 설치에서 실행해 래퍼를 생성한 뒤 `./gradlew` 명령을 사용하세요.
+- 또는 Android Studio에서 프로젝트를 열면 첫 Gradle 동기화 시 래퍼를 자동으로 생성/업데이트합니다.
+
 ## Next steps (다음 단계)
 
 - Integrate the domain logic with Android frameworks (ViewModel, WorkManager, AlarmManager).
@@ -50,6 +58,20 @@ These files are intended as a foundation for bootstrapping a full Android Studio
 - Room 등 데이터베이스 솔루션을 사용해 데이터를 영구 저장합니다.
 - Compose 기반의 캘린더 및 작업 목록 UI 컴포넌트를 구축합니다.
 - 스케줄링 로직과 리마인더 계산을 검증하는 계측/단위 테스트를 추가합니다.
+
+## Current progress (현재 진행 상황)
+
+- ✅ Domain models, aggregators, and reminder orchestration logic are implemented in Kotlin and covered by documentation in `docs/`.
+- ✅ Agenda view model wiring is in place, including agenda reloading and error handling when switching between day/week/month periods.
+- ⚙️ Storage and notification layers are mocked for now; they must be connected to real Room databases and Android alarm APIs inside a full application project.
+- 🚧 Jetpack Compose UI screens, navigation, and user interactions are still pending and should be developed next following the UX plans in the documentation.
+- 🧪 Automated tests and Gradle tasks cannot run until the wrapper (see above) is generated and Android project scaffolding is completed.
+
+- ✅ 코틀린으로 구현된 도메인 모델, 어그리게이터, 리마인더 오케스트레이션 로직이 `docs/` 문서와 함께 준비되어 있습니다.
+- ✅ 일/주/월 기간 전환 시 아젠다를 다시 불러오고 오류를 처리하는 Agenda 뷰모델 연결이 완료되었습니다.
+- ⚙️ 저장소와 알림 계층은 현재 목(mock) 상태이며, 실제 Room 데이터베이스와 안드로이드 알람 API에 연결해야 합니다.
+- 🚧 Jetpack Compose UI 화면, 내비게이션, 사용자 상호작용은 아직 구현되지 않았으며 문서의 UX 계획에 따라 가장 먼저 개발해야 합니다.
+- 🧪 Gradle 래퍼를 생성하고 안드로이드 프로젝트 골격을 갖추기 전까지는 자동화 테스트와 Gradle 작업을 실행할 수 없습니다.
 
 # work01
 # Calendar Planner (캘린더 플래너)
