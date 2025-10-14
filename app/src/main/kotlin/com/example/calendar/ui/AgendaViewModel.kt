@@ -3,7 +3,10 @@ package com.example.calendar.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.calendar.data.AgendaPeriod
+import com.example.calendar.data.CalendarEvent
+import com.example.calendar.data.EventRepository
 import com.example.calendar.data.Task
+import com.example.calendar.data.TaskRepository
 import com.example.calendar.scheduler.AgendaAggregator
 import com.example.calendar.scheduler.AgendaSnapshot
 import com.example.calendar.reminder.ReminderOrchestrator
@@ -19,7 +22,9 @@ import kotlinx.coroutines.launch
 
 class AgendaViewModel(
     private val aggregator: AgendaAggregator,
-    private val reminderOrchestrator: ReminderOrchestrator
+    private val reminderOrchestrator: ReminderOrchestrator,
+    private val taskRepository: TaskRepository,
+    private val eventRepository: EventRepository
 ) : ViewModel() {
 
     private val _period = MutableStateFlow<AgendaPeriod>(AgendaPeriod.Day(java.time.LocalDate.now()))
@@ -39,11 +44,28 @@ class AgendaViewModel(
     fun toggleTask(task: Task) {
         viewModelScope.launch {
             reminderOrchestrator.cancelForTask(task)
+            taskRepository.toggleStatus(task.id)
             val toggled = task.toggleCompletion()
             if (!toggled.status.isDone() && toggled.dueAt != null) {
                 reminderOrchestrator.scheduleForTask(toggled)
             }
             _state.value = _state.value.updateTask(toggled)
+        }
+    }
+
+    fun deleteTask(task: Task) {
+        viewModelScope.launch {
+            reminderOrchestrator.cancelForTask(task)
+            taskRepository.delete(task.id)
+            _state.value = _state.value.removeTask(task.id)
+        }
+    }
+
+    fun deleteEvent(event: CalendarEvent) {
+        viewModelScope.launch {
+            reminderOrchestrator.cancelForEvent(event)
+            eventRepository.delete(event.id)
+            _state.value = _state.value.removeEvent(event.id)
         }
     }
 
@@ -86,5 +108,15 @@ data class AgendaUiState(
             if (existing.id == task.id) task else existing
         }
         return copy(snapshot = current.copy(tasks = updatedTasks))
+    }
+
+    fun removeTask(id: java.util.UUID): AgendaUiState {
+        val current = snapshot ?: return this
+        return copy(snapshot = current.copy(tasks = current.tasks.filterNot { it.id == id }))
+    }
+
+    fun removeEvent(id: java.util.UUID): AgendaUiState {
+        val current = snapshot ?: return this
+        return copy(snapshot = current.copy(events = current.events.filterNot { it.id == id }))
     }
 }
