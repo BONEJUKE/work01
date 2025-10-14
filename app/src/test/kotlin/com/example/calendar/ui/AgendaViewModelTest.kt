@@ -132,43 +132,6 @@ class AgendaViewModelTest {
         assertEquals(listOf("event-${event.id}"), scheduler.canceled)
     }
 
-    @Test
-    fun `quick add task stores item and emits success message`() = runTest(dispatcher) {
-        advanceUntilIdle()
-
-        val result = viewModel.quickAddTask(
-            title = "Check quick add",
-            period = AgendaPeriod.Day(today),
-            focusedDay = today
-        )
-
-        assertTrue(result.isSuccess)
-        advanceUntilIdle()
-
-        val snapshot = requireNotNull(viewModel.state.value.snapshot)
-        assertEquals(2, snapshot.tasks.size)
-        val message = viewModel.state.value.userMessage
-        assertTrue(message is AgendaUserMessage.Success)
-    }
-
-    @Test
-    fun `quick add event stores entry and emits success message`() = runTest(dispatcher) {
-        advanceUntilIdle()
-
-        val result = viewModel.quickAddEvent(
-            title = "Quick planning",
-            focusedDay = today
-        )
-
-        assertTrue(result.isSuccess)
-        advanceUntilIdle()
-
-        val snapshot = requireNotNull(viewModel.state.value.snapshot)
-        assertEquals(2, snapshot.events.size)
-        val message = viewModel.state.value.userMessage
-        assertTrue(message is AgendaUserMessage.Success)
-    }
-
     private class RecordingReminderScheduler : ReminderScheduler {
         data class Scheduled(val id: String, val payload: ReminderPayload)
 

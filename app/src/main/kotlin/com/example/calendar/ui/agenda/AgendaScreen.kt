@@ -15,8 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -28,10 +26,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -53,8 +48,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.stateDescription
@@ -63,9 +58,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.Icon
 import com.example.calendar.data.AgendaPeriod
 import com.example.calendar.data.CalendarEvent
 import com.example.calendar.data.Task
@@ -80,14 +72,12 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 import kotlinx.coroutines.launch
-import kotlin.math.min
 
 private val DayFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
 private val WeekFormatter = DateTimeFormatter.ofPattern("MMM d", Locale.getDefault())
 private val MonthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())
 private val DateTimeDetailFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy · h:mm a", Locale.getDefault())
 private val TimeOnlyFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault())
-private val WeekdayChipFormatter = DateTimeFormatter.ofPattern("EEE d", Locale.getDefault())
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -131,11 +121,6 @@ fun AgendaRoute(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val coroutineScope = rememberCoroutineScope()
     var sheetContent by remember { mutableStateOf<AgendaSheetContent?>(null) }
-    var showQuickAddDialog by rememberSaveable { mutableStateOf(false) }
-    var isQuickAddSaving by remember { mutableStateOf(false) }
-    var quickAddType by rememberSaveable { mutableStateOf(QuickAddType.Task) }
-    var quickAddTitle by rememberSaveable { mutableStateOf("") }
-    var quickAddTitleError by remember { mutableStateOf(false) }
 
     val openTaskSheet: (Task) -> Unit = { task ->
         sheetContent = AgendaSheetContent.TaskDetail(task)
@@ -146,10 +131,6 @@ fun AgendaRoute(
         onEventClick(event)
     }
 
-    val onDateSelected: (LocalDate) -> Unit = { date ->
-        updateFocus(date)
-    }
-
     val hideSheet: () -> Unit = {
         coroutineScope.launch {
             try {
@@ -157,16 +138,6 @@ fun AgendaRoute(
             } finally {
                 sheetContent = null
             }
-        }
-    }
-
-    val snackbarHostState = remember { SnackbarHostState() }
-
-    LaunchedEffect(uiState.userMessage) {
-        val message = uiState.userMessage
-        if (message != null) {
-            snackbarHostState.showSnackbar(message.message)
-            viewModel.consumeUserMessage()
         }
     }
 
@@ -235,18 +206,25 @@ fun AgendaRoute(
         onToggleTask = viewModel::toggleTask,
         onTaskClick = openTaskSheet,
         onEventClick = openEventSheet,
-        onWeekDaySelected = onDateSelected,
-        onMonthDaySelected = onDateSelected,
-        focusedDay = focusedDay,
-        period = currentPeriod,
-        snackbarHostState = snackbarHostState,
-        onQuickAddClick = {
-            quickAddTitle = ""
-            quickAddTitleError = false
-            quickAddType = if (selectedTab == AgendaTab.Monthly) QuickAddType.Event else QuickAddType.Task
-            showQuickAddDialog = true
-        }
+        period = currentPeriod
     )
+
+    sheetContent?.let { content ->
+        ModalBottomSheet(
+            onDismissRequest = hideSheet,
+            sheetState = sheetState
+        ) {
+            AgendaDetailSheet(
+                content = content,
+                onToggleTask = { task ->
+                    viewModel.toggleTask(task)
+                    sheetContent = AgendaSheetContent.TaskDetail(task.toggleCompletion())
+                },
+                onClose = hideSheet
+            )
+        }
+    }
+}
 
     sheetContent?.let { content ->
         ModalBottomSheet(
@@ -278,56 +256,6 @@ fun AgendaRoute(
                 onClose = hideSheet
             )
         }
-    }
-
-    if (showQuickAddDialog) {
-        QuickAddDialog(
-            title = quickAddTitle,
-            onTitleChange = {
-                quickAddTitle = it
-                if (quickAddTitleError && it.isNotBlank()) {
-                    quickAddTitleError = false
-                }
-            },
-            isTitleError = quickAddTitleError,
-            selectedType = quickAddType,
-            onSelectType = { quickAddType = it },
-            focusedDay = focusedDay,
-            period = currentPeriod,
-            isSaving = isQuickAddSaving,
-            onDismiss = {
-                if (!isQuickAddSaving) {
-                    showQuickAddDialog = false
-                }
-            },
-            onConfirm = {
-                val trimmed = quickAddTitle.trim()
-                if (trimmed.isEmpty()) {
-                    quickAddTitleError = true
-                    return@QuickAddDialog
-                }
-                coroutineScope.launch {
-                    isQuickAddSaving = true
-                    val result = when (quickAddType) {
-                        QuickAddType.Task -> viewModel.quickAddTask(
-                            title = trimmed,
-                            period = currentPeriod,
-                            focusedDay = focusedDay
-                        )
-                        QuickAddType.Event -> viewModel.quickAddEvent(
-                            title = trimmed,
-                            focusedDay = focusedDay
-                        )
-                    }
-                    isQuickAddSaving = false
-                    if (result.isSuccess) {
-                        showQuickAddDialog = false
-                        quickAddTitle = ""
-                        quickAddTitleError = false
-                    }
-                }
-            }
-        )
     }
 }
 
@@ -412,7 +340,6 @@ fun AgendaScreen(
                     uiState.error != null -> AgendaError(uiState.error)
                     uiState.snapshot != null -> AgendaSnapshotContent(
                         snapshot = uiState.snapshot,
-                        selectedTab = selectedTab,
                         onToggleTask = onToggleTask,
                         onTaskClick = onTaskClick,
                         onEventClick = onEventClick,
@@ -420,77 +347,6 @@ fun AgendaScreen(
                     )
                     else -> AgendaEmptyState()
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AgendaFab(onClick: () -> Unit, icon: ImageVector = Icons.Filled.Add) {
-    FloatingActionButton(onClick = onClick) {
-        Icon(imageVector = icon, contentDescription = "빠른 추가")
-    }
-}
-
-private enum class QuickAddType {
-    Task,
-    Event
-}
-
-@Composable
-private fun QuickAddDialog(
-    title: String,
-    onTitleChange: (String) -> Unit,
-    isTitleError: Boolean,
-    selectedType: QuickAddType,
-    onSelectType: (QuickAddType) -> Unit,
-    focusedDay: LocalDate,
-    period: AgendaPeriod,
-    isSaving: Boolean,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit
-) {
-    val helperText = remember(selectedType, focusedDay, period) {
-        when (selectedType) {
-            QuickAddType.Task -> "${DayFormatter.format(focusedDay)} 기준으로 ${periodSummary(period)} 할 일을 오전 9시에 추가합니다."
-            QuickAddType.Event -> "${DayFormatter.format(focusedDay)} 오전 9시에 시작하는 1시간짜리 이벤트를 만듭니다."
-        }
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = "빠른 추가") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                QuickAddTypeRow(selectedType = selectedType, onSelectType = onSelectType)
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = onTitleChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(if (selectedType == QuickAddType.Task) "할 일 제목" else "이벤트 제목") },
-                    isError = isTitleError,
-                    singleLine = true,
-                    supportingText = {
-                        if (isTitleError) {
-                            Text(text = "제목을 입력해 주세요")
-                        }
-                    }
-                )
-                Text(
-                    text = helperText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm, enabled = !isSaving) {
-                Text(if (isSaving) "저장 중..." else "저장")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !isSaving) {
-                Text("취소")
             }
         }
     )
@@ -980,6 +836,11 @@ private fun EventCard(event: CalendarEvent, onClick: () -> Unit) {
                     overflow = TextOverflow.Ellipsis
                 )
             }
+            Text(
+                text = eventTimeRange(event),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             event.location?.let { location ->
                 Text(
                     text = location,
@@ -987,6 +848,165 @@ private fun EventCard(event: CalendarEvent, onClick: () -> Unit) {
                 )
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeableTaskRow(
+    task: Task,
+    onToggleTask: () -> Unit,
+    onTaskClick: () -> Unit
+) {
+    val dismissState = rememberSwipeToDismissBoxState { value ->
+        if (value != SwipeToDismissBoxValue.Settled) {
+            onToggleTask()
+            true
+        } else {
+            false
+        }
+    }
+    val actionLabel = if (task.status.isDone()) "Mark as pending" else "Mark as complete"
+    val containerColor = if (task.status.isDone()) {
+        MaterialTheme.colorScheme.tertiaryContainer
+    } else {
+        MaterialTheme.colorScheme.primaryContainer
+    }
+    val contentColor = if (task.status.isDone()) {
+        MaterialTheme.colorScheme.onTertiaryContainer
+    } else {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    }
+
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            DismissBackground(
+                label = actionLabel,
+                containerColor = containerColor,
+                contentColor = contentColor
+            )
+        },
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = true
+    ) {
+        TaskRow(
+            task = task,
+            onToggleTask = onToggleTask,
+            onTaskClick = onTaskClick
+        )
+    }
+
+    LaunchedEffect(task.status) {
+        dismissState.snapTo(SwipeToDismissBoxValue.Settled)
+    }
+}
+
+@Composable
+private fun DismissBackground(
+    label: String,
+    containerColor: Color,
+    contentColor: Color
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(containerColor)
+            .padding(horizontal = 24.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = label, color = contentColor, style = MaterialTheme.typography.bodyMedium)
+        Text(text = label, color = contentColor, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun EventTimeBadge(text: String) {
+    Surface(
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        shape = RoundedCornerShape(999.dp),
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeableTaskRow(
+    task: Task,
+    onToggleTask: () -> Unit,
+    onTaskClick: () -> Unit
+) {
+    val dismissState = rememberSwipeToDismissBoxState { value ->
+        if (value != SwipeToDismissBoxValue.Settled) {
+            onToggleTask()
+            true
+        } else {
+            false
+        }
+    }
+    val actionLabel = if (task.status.isDone()) "Mark as pending" else "Mark as complete"
+    val containerColor = if (task.status.isDone()) {
+        MaterialTheme.colorScheme.tertiaryContainer
+    } else {
+        MaterialTheme.colorScheme.primaryContainer
+    }
+    val contentColor = if (task.status.isDone()) {
+        MaterialTheme.colorScheme.onTertiaryContainer
+    } else {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    }
+
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            DismissBackground(
+                label = actionLabel,
+                containerColor = containerColor,
+                contentColor = contentColor
+            )
+        },
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = true
+    ) {
+        TaskRow(
+            task = task,
+            onToggleTask = onToggleTask,
+            onTaskClick = onTaskClick
+        )
+    }
+
+    LaunchedEffect(task.status) {
+        dismissState.snapTo(SwipeToDismissBoxValue.Settled)
+    }
+}
+
+@Composable
+private fun DismissBackground(
+    label: String,
+    containerColor: Color,
+    contentColor: Color
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(containerColor)
+            .padding(horizontal = 24.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = label, color = contentColor, style = MaterialTheme.typography.bodyMedium)
+        Text(text = label, color = contentColor, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -1304,6 +1324,115 @@ private fun EventDetailSheet(
             TextButton(onClick = onClose) {
                 Text("Close")
             }
+        }
+    }
+}
+
+private sealed interface AgendaSheetContent {
+    data class TaskDetail(val task: Task) : AgendaSheetContent
+    data class EventDetail(val event: CalendarEvent) : AgendaSheetContent
+}
+
+@Composable
+private fun AgendaDetailSheet(
+    content: AgendaSheetContent,
+    onToggleTask: (Task) -> Unit,
+    onClose: () -> Unit
+) {
+    when (content) {
+        is AgendaSheetContent.TaskDetail -> TaskDetailSheet(
+            task = content.task,
+            onToggleTask = onToggleTask,
+            onClose = onClose
+        )
+        is AgendaSheetContent.EventDetail -> EventDetailSheet(
+            event = content.event,
+            onClose = onClose
+        )
+    }
+}
+
+@Composable
+private fun TaskDetailSheet(
+    task: Task,
+    onToggleTask: (Task) -> Unit,
+    onClose: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = task.title,
+            style = MaterialTheme.typography.titleLarge
+        )
+        task.description?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        task.dueAt?.let { dueAt ->
+            Text(
+                text = "Due ${dueAt.format(DateTimeDetailFormatter)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Text(
+            text = "Status: ${task.status.displayName()}",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Button(onClick = { onToggleTask(task) }) {
+                Text(task.status.toggleLabel())
+            }
+            TextButton(onClick = onClose) {
+                Text("Close")
+            }
+        }
+    }
+}
+
+@Composable
+private fun EventDetailSheet(
+    event: CalendarEvent,
+    onClose: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = event.title,
+            style = MaterialTheme.typography.titleLarge
+        )
+        Text(
+            text = eventTimeRange(event),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        event.location?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        event.description?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        TextButton(onClick = onClose) {
+            Text("Close")
         }
     }
 }

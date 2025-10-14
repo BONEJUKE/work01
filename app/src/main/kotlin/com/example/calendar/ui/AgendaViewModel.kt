@@ -7,7 +7,6 @@ import com.example.calendar.data.CalendarEvent
 import com.example.calendar.data.EventRepository
 import com.example.calendar.data.Task
 import com.example.calendar.data.TaskRepository
-import com.example.calendar.reminder.ReminderOrchestrator
 import com.example.calendar.scheduler.AgendaAggregator
 import com.example.calendar.scheduler.AgendaSnapshot
 import java.time.LocalDate
@@ -72,73 +71,6 @@ class AgendaViewModel(
         }
     }
 
-    suspend fun quickAddTask(
-        title: String,
-        period: AgendaPeriod,
-        focusedDay: LocalDate
-    ): Result<Unit> {
-        val trimmed = title.trim()
-        if (trimmed.isBlank()) {
-            return Result.failure(IllegalArgumentException("Task title cannot be blank"))
-        }
-        val dueAt = LocalDateTime.of(focusedDay, DEFAULT_TASK_TIME)
-        val task = Task(
-            title = trimmed,
-            dueAt = dueAt,
-            period = when (period) {
-                is AgendaPeriod.Day -> AgendaPeriod.Day(focusedDay)
-                is AgendaPeriod.Week -> period
-                is AgendaPeriod.Month -> period
-            }
-        )
-
-        return runCatching {
-            taskRepository.upsert(task)
-            reminderOrchestrator.scheduleForTask(task)
-        }.onSuccess {
-            _state.value = _state.value.copy(
-                userMessage = AgendaUserMessage.Success("할 일을 저장했어요")
-            )
-        }.onFailure {
-            _state.value = _state.value.copy(
-                userMessage = AgendaUserMessage.Error("할 일을 저장하지 못했습니다.")
-            )
-        }
-    }
-
-    suspend fun quickAddEvent(
-        title: String,
-        focusedDay: LocalDate
-    ): Result<Unit> {
-        val trimmed = title.trim()
-        if (trimmed.isBlank()) {
-            return Result.failure(IllegalArgumentException("Event title cannot be blank"))
-        }
-        val start = LocalDateTime.of(focusedDay, DEFAULT_EVENT_START)
-        val event = CalendarEvent(
-            title = trimmed,
-            start = start,
-            end = start.plusHours(DEFAULT_EVENT_DURATION_HOURS)
-        )
-
-        return runCatching {
-            eventRepository.upsert(event)
-            reminderOrchestrator.scheduleForEvent(event)
-        }.onSuccess {
-            _state.value = _state.value.copy(
-                userMessage = AgendaUserMessage.Success("이벤트를 저장했어요")
-            )
-        }.onFailure {
-            _state.value = _state.value.copy(
-                userMessage = AgendaUserMessage.Error("이벤트를 저장하지 못했습니다.")
-            )
-        }
-    }
-
-    fun consumeUserMessage() {
-        _state.value = _state.value.copy(userMessage = null)
-    }
-
     private fun observePeriod() {
         _period
             .flatMapLatest { period ->
@@ -190,11 +122,6 @@ data class AgendaUiState(
         val current = snapshot ?: return this
         return copy(snapshot = current.copy(events = current.events.filterNot { it.id == id }))
     }
-}
-
-sealed class AgendaUserMessage(val message: String) {
-    class Success(message: String) : AgendaUserMessage(message)
-    class Error(message: String) : AgendaUserMessage(message)
 }
 
 private val DEFAULT_TASK_TIME: LocalTime = LocalTime.of(9, 0)
