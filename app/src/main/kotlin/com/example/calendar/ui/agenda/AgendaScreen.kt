@@ -72,14 +72,12 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 import kotlinx.coroutines.launch
-import kotlin.math.min
 
 private val DayFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
 private val WeekFormatter = DateTimeFormatter.ofPattern("MMM d", Locale.getDefault())
 private val MonthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())
 private val DateTimeDetailFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy · h:mm a", Locale.getDefault())
 private val TimeOnlyFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault())
-private val WeekdayChipFormatter = DateTimeFormatter.ofPattern("EEE d", Locale.getDefault())
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -131,10 +129,6 @@ fun AgendaRoute(
     val openEventSheet: (CalendarEvent) -> Unit = { event ->
         sheetContent = AgendaSheetContent.EventDetail(event)
         onEventClick(event)
-    }
-
-    val onDateSelected: (LocalDate) -> Unit = { date ->
-        updateFocus(date)
     }
 
     val hideSheet: () -> Unit = {
@@ -212,11 +206,25 @@ fun AgendaRoute(
         onToggleTask = viewModel::toggleTask,
         onTaskClick = openTaskSheet,
         onEventClick = openEventSheet,
-        onWeekDaySelected = onDateSelected,
-        onMonthDaySelected = onDateSelected,
-        focusedDay = focusedDay,
         period = currentPeriod
     )
+
+    sheetContent?.let { content ->
+        ModalBottomSheet(
+            onDismissRequest = hideSheet,
+            sheetState = sheetState
+        ) {
+            AgendaDetailSheet(
+                content = content,
+                onToggleTask = { task ->
+                    viewModel.toggleTask(task)
+                    sheetContent = AgendaSheetContent.TaskDetail(task.toggleCompletion())
+                },
+                onClose = hideSheet
+            )
+        }
+    }
+}
 
     sheetContent?.let { content ->
         ModalBottomSheet(
@@ -831,24 +839,16 @@ private sealed interface AgendaSheetContent {
 private fun AgendaDetailSheet(
     content: AgendaSheetContent,
     onToggleTask: (Task) -> Unit,
-    onDeleteTask: (Task) -> Unit,
-    onDeleteEvent: (CalendarEvent) -> Unit,
-    onEditTask: (Task) -> Unit,
-    onEditEvent: (CalendarEvent) -> Unit,
     onClose: () -> Unit
 ) {
     when (content) {
         is AgendaSheetContent.TaskDetail -> TaskDetailSheet(
             task = content.task,
             onToggleTask = onToggleTask,
-            onDeleteTask = onDeleteTask,
-            onEditTask = onEditTask,
             onClose = onClose
         )
         is AgendaSheetContent.EventDetail -> EventDetailSheet(
             event = content.event,
-            onDeleteEvent = onDeleteEvent,
-            onEditEvent = onEditEvent,
             onClose = onClose
         )
     }
@@ -858,8 +858,6 @@ private fun AgendaDetailSheet(
 private fun TaskDetailSheet(
     task: Task,
     onToggleTask: (Task) -> Unit,
-    onDeleteTask: (Task) -> Unit,
-    onEditTask: (Task) -> Unit,
     onClose: () -> Unit
 ) {
     Column(
@@ -889,21 +887,12 @@ private fun TaskDetailSheet(
             text = "Status: ${task.status.displayName()}",
             style = MaterialTheme.typography.bodyMedium
         )
-        Button(onClick = { onToggleTask(task) }) {
-            Text(task.status.toggleLabel())
-        }
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            OutlinedButton(onClick = { onEditTask(task) }) {
-                Text("Edit")
-            }
-            TextButton(
-                onClick = { onDeleteTask(task) },
-                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-            ) {
-                Text("Delete")
+            Button(onClick = { onToggleTask(task) }) {
+                Text(task.status.toggleLabel())
             }
             TextButton(onClick = onClose) {
                 Text("Close")
@@ -915,8 +904,6 @@ private fun TaskDetailSheet(
 @Composable
 private fun EventDetailSheet(
     event: CalendarEvent,
-    onDeleteEvent: (CalendarEvent) -> Unit,
-    onEditEvent: (CalendarEvent) -> Unit,
     onClose: () -> Unit
 ) {
     Column(
@@ -946,22 +933,8 @@ private fun EventDetailSheet(
                 style = MaterialTheme.typography.bodyMedium
             )
         }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
-        ) {
-            OutlinedButton(onClick = { onEditEvent(event) }) {
-                Text("Edit")
-            }
-            TextButton(
-                onClick = { onDeleteEvent(event) },
-                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-            ) {
-                Text("Delete")
-            }
-            TextButton(onClick = onClose) {
-                Text("Close")
-            }
+        TextButton(onClick = onClose) {
+            Text("Close")
         }
     }
 }
