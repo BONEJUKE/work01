@@ -13,7 +13,9 @@ class MainActivity : ComponentActivity() {
         val app = application as CalendarApplication
         AgendaViewModelFactory(
             aggregator = app.container.agendaAggregator,
-            reminderOrchestrator = app.container.reminderOrchestrator
+            reminderOrchestrator = app.container.reminderOrchestrator,
+            taskRepository = app.container.taskRepository,
+            eventRepository = app.container.eventRepository
         )
     }
 
