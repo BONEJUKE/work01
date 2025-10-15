@@ -47,6 +47,8 @@ These files are intended as a foundation for a full Android Studio project.
   **Compose 셸** – `CalendarApp`과 `AgendaRoute`가 탭, 리스트 스캐폴드, 스와이프 완료 행, 상세 시트를 뷰모델과 연동합니다.
 - **Unit tests** – Aggregator, reminder orchestration, and `AgendaViewModel` tests validate core scheduling logic.
   **단위 테스트** – 애그리게이터, 알림 오케스트레이터, `AgendaViewModel` 테스트로 핵심 스케줄링 로직을 검증합니다.
+- **Quick add flow** – The floating action button launches a sheet to capture new tasks or events with default dates.
+  **빠른 추가 플로우** – 플로팅 액션 버튼으로 시트를 열어 기본 날짜와 함께 일정·할 일을 즉시 등록할 수 있습니다.
 
 ### Partially done (부분 완료)
 - **Interactive UI polish** – Agenda detail sheet toggles and swipe actions are present, but require QA and accessibility review.
@@ -55,8 +57,6 @@ These files are intended as a foundation for a full Android Studio project.
   **품질 도구** – ViewModel/도메인 테스트는 있으나 Compose 프리뷰와 UI 테스트는 없습니다.
 
 ### Not yet implemented (미구현)
-- **Quick add flow** – The FAB surface is exposed but no quick-add sheet or handlers are wired, preventing in-app creation.
-  **빠른 추가 플로우** – FAB은 존재하지만 시트/핸들러가 없어 앱 내 생성이 불가합니다.
 - **Real reminder scheduling** – `ReminderOrchestrator` still targets a `NoOpReminderScheduler`; Android alarm integration and permission prompts remain.
   **실제 알림 스케줄링** – `ReminderOrchestrator`가 여전히 `NoOpReminderScheduler`에 연결되어 있어 알람 통합과 권한 흐름이 남아 있습니다.
 - **Gradle wrapper & CI** – The project cannot run automated builds until the Gradle wrapper and CI tasks are configured.
@@ -67,7 +67,7 @@ These files are intended as a foundation for a full Android Studio project.
 | --- | --- | --- | --- |
 | P0 | Compose agenda layout polish (tabs, empty states, list accessibility) / Compose 일정 화면 세부 다듬기 | ✅ Skeleton in place, needs UX polish. / 뼈대 완료, UX 다듬기 필요 |
 | P0 | Agenda detail bottom sheet / 일정·할 일 상세 시트 | ✅ Opens with toggle/delete hooks; finalize flows. / 열림 및 토글/삭제 훅 존재, 플로우 마무리 필요 |
-| P0 | Quick add FAB workflow / 새 항목 빠른 추가 | 🚧 Missing handlers, implement quick-add sheet. / 핸들러 미구현, 빠른 추가 시트 작성 |
+| P0 | Quick add FAB workflow / 새 항목 빠른 추가 | ✅ FAB opens quick-add sheet for tasks & events. / FAB으로 일정·할 일을 즉시 추가 |
 | P1 | Reminder orchestration hand-off / 알림 연동 준비 | 🚧 Wire real scheduler & permissions. / 실제 스케줄러 및 권한 연동 |
 | P1 | Testing & previews / 테스트·프리뷰 추가 | 🚧 Add Compose previews + UI tests. / Compose 프리뷰·UI 테스트 추가 |
 
