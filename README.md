@@ -8,8 +8,8 @@ A Kotlin-first Android calendar planner that unifies scheduling, reminders, and 
 ## Core capabilities (주요 기능)
 - **Scheduler & task lists** – Create and review day/week/month plans with completion tracking.
   **스케줄러와 작업 목록** – 일·주·월 단위 계획을 생성하고 완료 상태를 추적합니다.
-- **Reminder orchestration** – Configure alarms, lead times, and recurring cadence from the same workflow.
-  **알림 오케스트레이션** – 동일한 플로우에서 알람, 리드타임, 반복 주기를 설정합니다.
+- **Reminder orchestration** – Schedule lead-time reminders through the AlarmManager/WorkManager integration; recurrence editing remains TODO.
+  **알림 오케스트레이션** – AlarmManager/WorkManager 연동으로 리드타임 알림을 예약하며 반복 주기 편집은 아직 미구현입니다.
 - **Compose-first UI entry point** – `CalendarApp` boots a Compose shell that is ready to wire to navigation and storage.
   **Compose 중심 UI 진입점** – `CalendarApp`이 내비게이션과 저장소를 연결하기 쉬운 Compose 셸을 제공합니다.
 
