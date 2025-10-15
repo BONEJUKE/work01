@@ -237,8 +237,7 @@ fun AgendaRoute(
                 period = currentPeriod
             )
         },
-        onUserMessageShown = viewModel::clearUserMessage,
-        notificationPrompt = notificationPermissionCard
+        onUserMessageShown = viewModel::clearUserMessage
     )
 
     sheetContent?.let { content ->
@@ -349,7 +348,6 @@ fun AgendaScreen(
     period: AgendaPeriod,
     onQuickAddClick: () -> Unit = {},
     onUserMessageShown: () -> Unit = {},
-    notificationPrompt: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
