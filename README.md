@@ -72,8 +72,8 @@ These files are intended as a foundation for a full Android Studio project.
 | P1 | Testing & previews / 테스트·프리뷰 추가 | 🚧 Add Compose previews + UI tests. / Compose 프리뷰·UI 테스트 추가 |
 
 ### Additional backlog (추가 백로그)
-- Connect WorkManager/AlarmManager for recurring reminders and exact alarms.
-  WorkManager/AlarmManager를 연결해 반복/정시 알람을 구현합니다.
+- Expand reminder cadence and snooze actions on top of the AlarmManager/WorkManager integration.
+  AlarmManager/WorkManager 연동 위에 반복 주기와 스누즈 동작을 확장합니다.
 - Fill out Android resources (strings, themes, navigation graph) and internationalization.
   문자열, 테마, 내비게이션 그래프 및 다국어 리소스를 채워 넣습니다.
 - Investigate backup/sync strategies once local persistence is stable.

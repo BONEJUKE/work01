@@ -98,7 +98,8 @@ fun AgendaRoute(
     onEventClick: (CalendarEvent) -> Unit = {},
     onTaskClick: (Task) -> Unit = {},
     onEventEdit: (CalendarEvent) -> Unit = {},
-    onTaskEdit: (Task) -> Unit = {}
+    onTaskEdit: (Task) -> Unit = {},
+    notificationPermissionCard: (@Composable () -> Unit)? = null
 ) {
     val uiState by viewModel.state.collectAsState()
 
@@ -406,6 +407,10 @@ fun AgendaScreen(
                     )
                     else -> AgendaEmptyState()
                 }
+            }
+            if (notificationPrompt != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                notificationPrompt()
             }
         }
     )

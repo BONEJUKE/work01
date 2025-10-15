@@ -12,7 +12,7 @@ class CalendarApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        container = QuickStartAppContainer()
+        container = QuickStartAppContainer(applicationContext)
     }
 }
 
