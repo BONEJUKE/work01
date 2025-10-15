@@ -15,6 +15,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -23,8 +26,9 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -72,10 +76,12 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 import kotlinx.coroutines.launch
+import kotlin.math.min
 
 private val DayFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
 private val WeekFormatter = DateTimeFormatter.ofPattern("MMM d", Locale.getDefault())
 private val MonthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())
+private val WeekdayChipFormatter = DateTimeFormatter.ofPattern("EEE d", Locale.getDefault())
 private val DateTimeDetailFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy · h:mm a", Locale.getDefault())
 private val TimeOnlyFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault())
 
@@ -206,6 +212,15 @@ fun AgendaRoute(
         onToggleTask = viewModel::toggleTask,
         onTaskClick = openTaskSheet,
         onEventClick = openEventSheet,
+        onWeekDaySelected = { date ->
+            updateFocus(date)
+            navigationState.navigateTo(AgendaTab.Daily)
+        },
+        onMonthDaySelected = { date ->
+            updateFocus(date)
+            navigationState.navigateTo(AgendaTab.Daily)
+        },
+        focusedDay = focusedDay,
         period = currentPeriod
     )
 
@@ -281,12 +296,10 @@ fun AgendaScreen(
     onMonthDaySelected: (LocalDate) -> Unit,
     focusedDay: LocalDate,
     period: AgendaPeriod,
-    snackbarHostState: SnackbarHostState,
-    onQuickAddClick: () -> Unit,
+    onQuickAddClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             AgendaFab(onClick = onQuickAddClick)
         },
@@ -335,18 +348,12 @@ fun AgendaScreen(
 }
 
 @Composable
-private fun QuickAddTypeRow(
-    selectedType: QuickAddType,
-    onSelectType: (QuickAddType) -> Unit
-) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        QuickAddType.values().forEach { type ->
-            FilterChip(
-                selected = selectedType == type,
-                onClick = { onSelectType(type) },
-                label = { Text(if (type == QuickAddType.Task) "할 일" else "이벤트") }
-            )
-        }
+private fun AgendaFab(onClick: () -> Unit) {
+    FloatingActionButton(onClick = onClick) {
+        Icon(
+            imageVector = Icons.Filled.Add,
+            contentDescription = "새 일정 또는 할 일 추가"
+        )
     }
 }
 
