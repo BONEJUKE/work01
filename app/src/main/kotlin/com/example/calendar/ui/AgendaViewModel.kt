@@ -7,11 +7,14 @@ import com.example.calendar.data.CalendarEvent
 import com.example.calendar.data.EventRepository
 import com.example.calendar.data.Task
 import com.example.calendar.data.TaskRepository
+import com.example.calendar.reminder.ReminderOrchestrator
 import com.example.calendar.scheduler.AgendaAggregator
 import com.example.calendar.scheduler.AgendaSnapshot
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.temporal.TemporalAdjusters
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,7 +23,9 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class AgendaViewModel(
     private val aggregator: AgendaAggregator,
@@ -69,6 +74,101 @@ class AgendaViewModel(
             eventRepository.delete(event.id)
             _state.value = _state.value.removeEvent(event.id)
         }
+    }
+
+    suspend fun quickAddTask(
+        title: String,
+        focusDate: LocalDate,
+        period: AgendaPeriod,
+        description: String?,
+        dueTime: LocalTime?
+    ): Result<Task> {
+        return withContext(viewModelScope.coroutineContext) {
+            runCatching {
+                val normalizedTitle = title.trim()
+                require(normalizedTitle.isNotEmpty()) { "제목을 입력해 주세요." }
+
+                val sanitizedDescription = description?.trim().takeIf { !it.isNullOrBlank() }
+                val dueAt = dueTime?.let { LocalDateTime.of(focusDate, it) }
+                val targetPeriod = resolvePeriodForQuickAdd(period, focusDate)
+
+                val task = Task(
+                    title = normalizedTitle,
+                    description = sanitizedDescription,
+                    dueAt = dueAt,
+                    period = targetPeriod
+                )
+
+                taskRepository.upsert(task)
+                if (dueAt != null) {
+                    reminderOrchestrator.scheduleForTask(task)
+                }
+
+                _state.update {
+                    it.copy(userMessage = AgendaUserMessage.QuickAddSuccess(QuickAddType.Task))
+                }
+                task
+            }.onFailure { error ->
+                _state.update {
+                    it.copy(
+                        userMessage = AgendaUserMessage.QuickAddFailure(
+                            error.message ?: "할 일을 추가하지 못했습니다."
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    suspend fun quickAddEvent(
+        title: String,
+        focusDate: LocalDate,
+        period: AgendaPeriod,
+        description: String?,
+        location: String?,
+        startTime: LocalTime,
+        endTime: LocalTime
+    ): Result<CalendarEvent> {
+        return withContext(viewModelScope.coroutineContext) {
+            runCatching {
+                val normalizedTitle = title.trim()
+                require(normalizedTitle.isNotEmpty()) { "제목을 입력해 주세요." }
+
+                val sanitizedDescription = description?.trim().takeIf { !it.isNullOrBlank() }
+                val sanitizedLocation = location?.trim().takeIf { !it.isNullOrBlank() }
+                val start = LocalDateTime.of(focusDate, startTime)
+                val end = LocalDateTime.of(focusDate, endTime)
+                require(!end.isBefore(start)) { "종료 시간이 시작 시간보다 빠를 수 없습니다." }
+
+                val event = CalendarEvent(
+                    title = normalizedTitle,
+                    description = sanitizedDescription,
+                    start = start,
+                    end = end,
+                    location = sanitizedLocation
+                )
+
+                eventRepository.upsert(event)
+                reminderOrchestrator.scheduleForEvent(event)
+
+                _state.update {
+                    it.copy(userMessage = AgendaUserMessage.QuickAddSuccess(QuickAddType.Event))
+                }
+                event
+            }.onFailure { error ->
+                _state.update {
+                    it.copy(
+                        userMessage = AgendaUserMessage.QuickAddFailure(
+                            error.message ?: "일정을 추가하지 못했습니다."
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    fun clearUserMessage() {
+        _state.update { it.copy(userMessage = null) }
     }
 
     private fun observePeriod() {
@@ -127,3 +227,24 @@ data class AgendaUiState(
 private val DEFAULT_TASK_TIME: LocalTime = LocalTime.of(9, 0)
 private val DEFAULT_EVENT_START: LocalTime = LocalTime.of(9, 0)
 private const val DEFAULT_EVENT_DURATION_HOURS = 1L
+
+private fun resolvePeriodForQuickAdd(period: AgendaPeriod, focusDate: LocalDate): AgendaPeriod {
+    return when (period) {
+        is AgendaPeriod.Day -> AgendaPeriod.Day(focusDate)
+        is AgendaPeriod.Week -> {
+            val startOfWeek = focusDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            AgendaPeriod.Week(startOfWeek)
+        }
+        is AgendaPeriod.Month -> AgendaPeriod.Month(focusDate.year, focusDate.monthValue)
+    }
+}
+
+enum class QuickAddType {
+    Task,
+    Event
+}
+
+sealed class AgendaUserMessage {
+    data class QuickAddSuccess(val type: QuickAddType) : AgendaUserMessage()
+    data class QuickAddFailure(val reason: String) : AgendaUserMessage()
+}

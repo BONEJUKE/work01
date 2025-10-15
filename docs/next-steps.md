@@ -19,15 +19,15 @@
 3. [x] **입력 및 저장**
    - [x] 빠른 추가 FAB를 통해 최소 입력값만으로 이벤트/할 일을 생성합니다.
    - [x] 저장 성공/실패를 스낵바와 인라인 검증으로 안내합니다.
-4. [ ] **알림 연결 준비**
-   - [ ] `ReminderOrchestrator` 연동 위치에 실제 스케줄러 연결 주석을 추가합니다.
-   - [ ] 권한 확인/요청 흐름을 설계합니다.
+4. [x] **알림 연결 준비**
+   - [x] `ReminderOrchestrator`에 `AndroidReminderScheduler`를 연결해 AlarmManager/WorkManager와 연동합니다.
+   - [x] 알림 권한 확인/요청 흐름을 Compose에서 안내합니다.
 5. [ ] **품질 보강**
    - [ ] Compose Preview와 UI 테스트를 추가해 회귀를 막습니다.
    - [ ] ViewModel/도메인 단위 테스트로 Day/Week/Month 집계를 검증합니다.
 
 ## 이후 확장 아이디어
-- Room과 WorkManager를 다시 연결해 영속 저장 및 실제 알림 발송을 구현합니다.
+- Room과 실제 저장소를 연결해 인메모리 데이터를 대체하고, WorkManager 기반 알림을 영속화합니다.
 - 다국어 지원과 접근성(콘텐츠 설명, 대비, 폰트 크기 대응)을 점검합니다.
 - 홈 화면 위젯과 다크 모드 대응을 준비합니다.
 

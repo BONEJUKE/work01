@@ -1,5 +1,8 @@
 package com.example.calendar
 
+import android.app.AlarmManager
+import android.content.Context
+import androidx.work.WorkManager
 import com.example.calendar.data.AgendaPeriod
 import com.example.calendar.data.CalendarEvent
 import com.example.calendar.data.EventRepository
@@ -8,7 +11,7 @@ import com.example.calendar.data.InMemoryTaskRepository
 import com.example.calendar.data.Task
 import com.example.calendar.data.TaskRepository
 import com.example.calendar.data.TaskStatus
-import com.example.calendar.reminder.NoOpReminderScheduler
+import com.example.calendar.reminder.AndroidReminderScheduler
 import com.example.calendar.reminder.ReminderOrchestrator
 import com.example.calendar.scheduler.AgendaAggregator
 import java.time.DayOfWeek
@@ -22,7 +25,9 @@ import java.time.temporal.TemporalAdjusters
  * meaningful content as soon as it launches. The goal is to get a runnable
  * build quickly without waiting for Room, WorkManager, or alarm integrations.
  */
-class QuickStartAppContainer : AppContainer {
+class QuickStartAppContainer(
+    private val context: Context
+) : AppContainer {
 
     private val today: LocalDate = LocalDate.now()
     private val weekStart: LocalDate = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
@@ -87,8 +92,21 @@ class QuickStartAppContainer : AppContainer {
 
     override val eventRepository: EventRepository = eventRepositoryImpl
 
+    private val alarmManager: AlarmManager by lazy {
+        context.getSystemService(AlarmManager::class.java)
+            ?: context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+    }
+
+    private val workManager: WorkManager by lazy { WorkManager.getInstance(context) }
+
     override val reminderOrchestrator: ReminderOrchestrator by lazy {
-        ReminderOrchestrator(NoOpReminderScheduler())
+        ReminderOrchestrator(
+            AndroidReminderScheduler(
+                context = context,
+                alarmManager = alarmManager,
+                workManager = workManager
+            )
+        )
     }
 
     override val agendaAggregator: AgendaAggregator by lazy {
