@@ -20,33 +20,36 @@
 
 ## 시작 방법
 1. 이 레포지토리를 Android Studio에서 열거나 `app/src/main/kotlin`을 기존 프로젝트로 복사합니다.
-2. 필요 시 `gradle wrapper --gradle-version 8.5` 명령으로 Gradle 래퍼를 생성합니다.
+2. 레포지토리에 포함된 Gradle 래퍼(`./gradlew`)로 빌드·테스트를 실행합니다. 일부 코드 호스팅에서 바이너리 업로드가 제한되는
+   관계로 래퍼 JAR은 `gradle/wrapper/gradle-wrapper.jar.base64`에 Base64 텍스트로 보관되며, `./gradlew`와 `gradlew.bat`가 최초 실행
+   시 자동으로 복원합니다.
 3. Room 또는 다른 영속성 계층과 AlarmManager/WorkManager 권한 플로우를 실제 앱 환경에 맞게 연결합니다.
 4. `docs/ux-flows.md`를 참고해 내비게이션 및 추가 화면을 구성합니다.
 
 ## 품질 및 테스트 현황
-- `AgendaScreen`에 대표 상태(로딩, 빈 목록, 데이터 로드)를 시각화하는 Compose Preview가 추가되었습니다.
+- `AgendaScreen`의 로딩·빈 상태·오류 UI에 접근성 안내 및 라이브 리전을 추가했습니다.
 - 기본 Compose UI 계측 테스트(`AgendaScreenTest`)가 FAB/리스트 표시 여부를 검증합니다.
 - Aggregator, Reminder, ViewModel 단위 테스트가 포함되어 있으며, 도메인 회귀 보강 테스트는 추가 작업으로 남아 있습니다.
+- GitHub Actions 워크플로(`.github/workflows/ci.yml`)가 래퍼 검증과 테스트 실행을 자동화합니다.
 
 ## 현재 상태 진단
 ### 완료됨
 - 도메인·데이터 레이어 및 Room 연동, 리마인더 오케스트레이션, 빠른 추가 플로우.
 - Compose Agenda 셸과 상호작용(스와이프 완료, 상세 시트, 상태 토글).
+- 접근성 및 세부 UI 폴리시(빈 상태 안내, 탐색 컨트롤, 요약 카드 대체 텍스트)를 강화했습니다.
 - Compose Preview와 기본 UI 테스트를 통해 화면 회귀 점검의 출발점을 마련했습니다.
+- Gradle 래퍼와 GitHub Actions CI 워크플로가 포함되어 일관된 빌드 환경을 제공합니다.
 
 ### 부분 완료
-- 접근성 및 세부 UI 폴리시(특히 빈 상태·탭 포커스 경험) 추가 다듬기.
 - ViewModel/도메인 추가 단위 테스트로 일·주·월 집계 정확성 보강 필요.
 
 ### 미구현
-- Gradle 래퍼 및 CI 파이프라인.
 - Room 기반 영속 데이터 저장 및 알림 영속화 확장 작업.
 
 ## 우선순위 로드맵
 | 우선순위 | 작업 | 상태 | 메모 |
 | --- | --- | --- | --- |
-| P0 | Compose 일정 화면 세부 다듬기 | ✅ | 탭·빈 상태·리스트 상호작용 골격 완성, 추가 UX 폴리시 진행 중 |
+| P0 | Compose 일정 화면 세부 다듬기 | ✅ | 탭·빈 상태·리스트 상호작용 및 접근성 폴리시까지 정비 |
 | P0 | 일정·할 일 상세 시트 | ✅ | 토글·삭제·수정 흐름 연결 완료 |
 | P0 | 새 항목 빠른 추가 | ✅ | FAB 시트로 Task/Event 빠른 등록 지원 |
 | P1 | 알림 연동 준비 | ✅ | AndroidReminderScheduler ↔ AlarmManager·WorkManager, 권한 안내 연결 |
