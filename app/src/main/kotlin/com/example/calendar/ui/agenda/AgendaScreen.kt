@@ -30,7 +30,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -42,7 +46,6 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -68,9 +71,12 @@ import com.example.calendar.data.Task
 import com.example.calendar.data.TaskStatus
 import com.example.calendar.scheduler.AgendaSnapshot
 import com.example.calendar.ui.AgendaUiState
+import com.example.calendar.ui.AgendaUserMessage
 import com.example.calendar.ui.AgendaViewModel
+import com.example.calendar.ui.QuickAddType
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
@@ -174,6 +180,7 @@ fun AgendaRoute(
                         hideSheet()
                     }
                 }
+                is AgendaSheetContent.QuickAdd -> Unit
             }
         }
     }
@@ -221,7 +228,15 @@ fun AgendaRoute(
             navigationState.navigateTo(AgendaTab.Daily)
         },
         focusedDay = focusedDay,
-        period = currentPeriod
+        period = currentPeriod,
+        onQuickAddClick = {
+            sheetContent = AgendaSheetContent.QuickAdd(
+                initialType = QuickAddType.Task,
+                focusDate = focusedDay,
+                period = currentPeriod
+            )
+        },
+        onUserMessageShown = viewModel::clearUserMessage
     )
 
     sheetContent?.let { content ->
@@ -229,30 +244,64 @@ fun AgendaRoute(
             onDismissRequest = hideSheet,
             sheetState = sheetState
         ) {
-            AgendaDetailSheet(
-                content = content,
-                onToggleTask = { task ->
-                    viewModel.toggleTask(task)
-                    sheetContent = AgendaSheetContent.TaskDetail(task.toggleCompletion())
-                },
-                onDeleteTask = { task ->
-                    viewModel.deleteTask(task)
-                    hideSheet()
-                },
-                onDeleteEvent = { event ->
-                    viewModel.deleteEvent(event)
-                    hideSheet()
-                },
-                onEditTask = { task ->
-                    onTaskEdit(task)
-                    hideSheet()
-                },
-                onEditEvent = { event ->
-                    onEventEdit(event)
-                    hideSheet()
-                },
-                onClose = hideSheet
-            )
+            when (content) {
+                is AgendaSheetContent.TaskDetail -> TaskDetailSheet(
+                    task = content.task,
+                    onToggleTask = { task ->
+                        viewModel.toggleTask(task)
+                        sheetContent = AgendaSheetContent.TaskDetail(task.toggleCompletion())
+                    },
+                    onDeleteTask = {
+                        viewModel.deleteTask(it)
+                        hideSheet()
+                    },
+                    onEditTask = {
+                        onTaskEdit(it)
+                        hideSheet()
+                    },
+                    onClose = hideSheet
+                )
+                is AgendaSheetContent.EventDetail -> EventDetailSheet(
+                    event = content.event,
+                    onDeleteEvent = {
+                        viewModel.deleteEvent(it)
+                        hideSheet()
+                    },
+                    onEditEvent = {
+                        onEventEdit(it)
+                        hideSheet()
+                    },
+                    onClose = hideSheet
+                )
+                is AgendaSheetContent.QuickAdd -> QuickAddSheet(
+                    content = content,
+                    onCreateTask = { input ->
+                        viewModel
+                            .quickAddTask(
+                                title = input.title,
+                                focusDate = content.focusDate,
+                                period = content.period,
+                                description = input.notes,
+                                dueTime = input.dueTime
+                            )
+                            .map {}
+                    },
+                    onCreateEvent = { input ->
+                        viewModel
+                            .quickAddEvent(
+                                title = input.title,
+                                focusDate = content.focusDate,
+                                period = content.period,
+                                description = input.notes,
+                                location = input.location,
+                                startTime = input.startTime,
+                                endTime = input.endTime
+                            )
+                            .map {}
+                    },
+                    onDismiss = hideSheet
+                )
+            }
         }
     }
 
@@ -297,9 +346,24 @@ fun AgendaScreen(
     focusedDay: LocalDate,
     period: AgendaPeriod,
     onQuickAddClick: () -> Unit = {},
+    onUserMessageShown: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(uiState.userMessage) {
+        uiState.userMessage?.let { message ->
+            snackbarHostState.showSnackbar(
+                message = message.toSnackbarMessage(),
+                withDismissAction = true,
+                duration = SnackbarDuration.Short
+            )
+            onUserMessageShown()
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             AgendaFab(onClick = onQuickAddClick)
         },
@@ -1018,33 +1082,11 @@ private fun TaskStatusBadge(status: TaskStatus) {
 private sealed interface AgendaSheetContent {
     data class TaskDetail(val task: Task) : AgendaSheetContent
     data class EventDetail(val event: CalendarEvent) : AgendaSheetContent
-}
-
-@Composable
-private fun AgendaDetailSheet(
-    content: AgendaSheetContent,
-    onToggleTask: (Task) -> Unit,
-    onDeleteTask: (Task) -> Unit,
-    onDeleteEvent: (CalendarEvent) -> Unit,
-    onEditTask: (Task) -> Unit,
-    onEditEvent: (CalendarEvent) -> Unit,
-    onClose: () -> Unit
-) {
-    when (content) {
-        is AgendaSheetContent.TaskDetail -> TaskDetailSheet(
-            task = content.task,
-            onToggleTask = onToggleTask,
-            onDeleteTask = onDeleteTask,
-            onEditTask = onEditTask,
-            onClose = onClose
-        )
-        is AgendaSheetContent.EventDetail -> EventDetailSheet(
-            event = content.event,
-            onDeleteEvent = onDeleteEvent,
-            onEditEvent = onEditEvent,
-            onClose = onClose
-        )
-    }
+    data class QuickAdd(
+        val initialType: QuickAddType,
+        val focusDate: LocalDate,
+        val period: AgendaPeriod
+    ) : AgendaSheetContent
 }
 
 @Composable
@@ -1159,6 +1201,237 @@ private fun EventDetailSheet(
     }
 }
 
+@Composable
+private fun QuickAddSheet(
+    content: AgendaSheetContent.QuickAdd,
+    onCreateTask: suspend (QuickAddTaskInput) -> Result<Unit>,
+    onCreateEvent: suspend (QuickAddEventInput) -> Result<Unit>,
+    onDismiss: () -> Unit
+) {
+    var selectedType by rememberSaveable { mutableStateOf(content.initialType) }
+    var taskTitle by rememberSaveable { mutableStateOf("") }
+    var taskNotes by rememberSaveable { mutableStateOf("") }
+    var taskTime by rememberSaveable { mutableStateOf(DEFAULT_TASK_TIME_TEXT) }
+
+    var eventTitle by rememberSaveable { mutableStateOf("") }
+    var eventLocation by rememberSaveable { mutableStateOf("") }
+    var eventNotes by rememberSaveable { mutableStateOf("") }
+    var eventStartTime by rememberSaveable { mutableStateOf(DEFAULT_EVENT_START_TEXT) }
+    var eventEndTime by rememberSaveable { mutableStateOf(DEFAULT_EVENT_END_TEXT) }
+
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isSaving by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(selectedType) {
+        errorMessage = null
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = "빠른 추가",
+            style = MaterialTheme.typography.titleLarge
+        )
+        Text(
+            text = "${periodSummary(content.period)} · ${content.focusDate.format(DayFormatter)}",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            FilterChip(
+                selected = selectedType == QuickAddType.Task,
+                onClick = { selectedType = QuickAddType.Task },
+                label = { Text("할 일") }
+            )
+            FilterChip(
+                selected = selectedType == QuickAddType.Event,
+                onClick = { selectedType = QuickAddType.Event },
+                label = { Text("일정") }
+            )
+        }
+
+        when (selectedType) {
+            QuickAddType.Task -> {
+                OutlinedTextField(
+                    value = taskTitle,
+                    onValueChange = { taskTitle = it },
+                    label = { Text("제목") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = taskNotes,
+                    onValueChange = { taskNotes = it },
+                    label = { Text("메모 (선택)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = taskTime,
+                    onValueChange = { taskTime = it },
+                    label = { Text("마감 시간 (HH:mm)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    supportingText = {
+                        Text(
+                            text = "비워 두면 시간 없이 저장됩니다.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                )
+            }
+            QuickAddType.Event -> {
+                OutlinedTextField(
+                    value = eventTitle,
+                    onValueChange = { eventTitle = it },
+                    label = { Text("제목") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = eventLocation,
+                    onValueChange = { eventLocation = it },
+                    label = { Text("위치 (선택)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = eventStartTime,
+                    onValueChange = { eventStartTime = it },
+                    label = { Text("시작 시간 (HH:mm)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = eventEndTime,
+                    onValueChange = { eventEndTime = it },
+                    label = { Text("종료 시간 (HH:mm)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = eventNotes,
+                    onValueChange = { eventNotes = it },
+                    label = { Text("메모 (선택)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        errorMessage?.let { message ->
+            Text(
+                text = message,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+        ) {
+            TextButton(onClick = {
+                if (!isSaving) {
+                    onDismiss()
+                }
+            }) {
+                Text("취소")
+            }
+            Button(
+                onClick = {
+                    if (isSaving) return@Button
+                    errorMessage = null
+                    when (selectedType) {
+                        QuickAddType.Task -> {
+                            val title = taskTitle.trim()
+                            if (title.isEmpty()) {
+                                errorMessage = "제목을 입력해 주세요."
+                                return@Button
+                            }
+                            val dueTimeResult = taskTime.takeIf { it.isNotBlank() }?.let { value ->
+                                parseInputTime(value).onFailure {
+                                    errorMessage = "시간 형식은 HH:mm 이어야 해요."
+                                }
+                            }
+                            if (errorMessage != null) return@Button
+
+                            val dueTimeValue = dueTimeResult?.getOrNull()
+
+                            coroutineScope.launch {
+                                isSaving = true
+                                val result = onCreateTask(
+                                    QuickAddTaskInput(
+                                        title = title,
+                                        notes = taskNotes.takeIf { it.isNotBlank() },
+                                        dueTime = dueTimeValue
+                                    )
+                                )
+                                if (result.isSuccess) {
+                                    onDismiss()
+                                } else {
+                                    errorMessage = result.exceptionOrNull()?.message
+                                        ?: "저장에 실패했습니다."
+                                }
+                                isSaving = false
+                            }
+                        }
+                        QuickAddType.Event -> {
+                            val title = eventTitle.trim()
+                            if (title.isEmpty()) {
+                                errorMessage = "제목을 입력해 주세요."
+                                return@Button
+                            }
+                            val startResult = parseInputTime(eventStartTime).onFailure {
+                                errorMessage = "시작 시간을 HH:mm 형식으로 입력하세요."
+                            }
+                            if (errorMessage != null) return@Button
+                            val endResult = parseInputTime(eventEndTime).onFailure {
+                                errorMessage = "종료 시간을 HH:mm 형식으로 입력하세요."
+                            }
+                            if (errorMessage != null) return@Button
+
+                            val startValue = startResult.getOrNull()
+                            val endValue = endResult.getOrNull()
+                            if (startValue == null || endValue == null) {
+                                errorMessage = "시간을 다시 확인해 주세요."
+                                return@Button
+                            }
+
+                            coroutineScope.launch {
+                                isSaving = true
+                                val result = onCreateEvent(
+                                    QuickAddEventInput(
+                                        title = title,
+                                        location = eventLocation.takeIf { it.isNotBlank() },
+                                        notes = eventNotes.takeIf { it.isNotBlank() },
+                                        startTime = startValue,
+                                        endTime = endValue
+                                    )
+                                )
+                                if (result.isSuccess) {
+                                    onDismiss()
+                                } else {
+                                    errorMessage = result.exceptionOrNull()?.message
+                                        ?: "저장에 실패했습니다."
+                                }
+                                isSaving = false
+                            }
+                        }
+                    }
+                },
+                enabled = !isSaving
+            ) {
+                Text(if (isSaving) "저장 중..." else "저장")
+            }
+        }
+    }
+}
+
 
 
 @Composable
@@ -1208,6 +1481,14 @@ private fun eventTimeRange(event: CalendarEvent): String {
     }
 }
 
+private fun AgendaUserMessage.toSnackbarMessage(): String = when (this) {
+    is AgendaUserMessage.QuickAddSuccess -> when (type) {
+        QuickAddType.Task -> "할 일을 추가했어요."
+        QuickAddType.Event -> "일정을 추가했어요."
+    }
+    is AgendaUserMessage.QuickAddFailure -> reason
+}
+
 private fun AgendaTab.displayLabel(): String = when (this) {
     AgendaTab.Daily -> "Daily"
     AgendaTab.Weekly -> "Weekly"
@@ -1231,6 +1512,29 @@ private fun periodLabel(period: AgendaPeriod): String = when (period) {
         YearMonth.of(period.year, period.month).atDay(1)
     )
 }
+
+private data class QuickAddTaskInput(
+    val title: String,
+    val notes: String?,
+    val dueTime: LocalTime?
+)
+
+private data class QuickAddEventInput(
+    val title: String,
+    val location: String?,
+    val notes: String?,
+    val startTime: LocalTime,
+    val endTime: LocalTime
+)
+
+private fun parseInputTime(value: String): Result<LocalTime> {
+    return runCatching { LocalTime.parse(value.trim(), QuickAddTimeFormatter) }
+}
+
+private const val DEFAULT_TASK_TIME_TEXT = "09:00"
+private const val DEFAULT_EVENT_START_TEXT = "09:00"
+private const val DEFAULT_EVENT_END_TEXT = "10:00"
+private val QuickAddTimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("H:mm", Locale.getDefault())
 
 private fun LocalDate.startOfWeek(): LocalDate {
     var date = this
