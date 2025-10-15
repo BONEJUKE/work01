@@ -1,97 +1,64 @@
-codex/add-calendar-app-with-scheduler-and-alarm
 # Work01 Calendar App (워크01 캘린더 앱)
 
-A Kotlin-first Android calendar planner that unifies scheduling, reminders, and to-do tracking. The repository ships with a fully documented domain layer prototype, Compose agenda scaffolding, and guidance for finishing the production-ready experience.
+워크01 캘린더 앱은 일정, 리마인더, 할 일 관리를 하나의 Compose 기반 경험으로 통합하는 Kotlin 우선 Android 프로젝트입니다. (An Android calendar planner that unifies schedules, reminders, and to-dos.)
 
-코틀린 기반으로 일정, 알림, 할 일 추적을 통합한 안드로이드 캘린더 플래너입니다. 이 저장소에는 문서화된 도메인 레이어 프로토타입과 Compose 아젠다 스캐폴드, 출시를 위한 마무리 가이드가 포함되어 있습니다.
+## 프로젝트 하이라이트
+- **Compose 우선 아젠다 셸** – `CalendarApp`과 `AgendaRoute`가 탭·리스트·바텀시트를 포함한 전체 Agenda UI 골격을 제공합니다. (Compose-first agenda shell ready for navigation wiring.)
+- **리마인더 오케스트레이션** – `ReminderOrchestrator`와 `AndroidReminderScheduler`가 AlarmManager·WorkManager 기반 알림을 예약합니다. (AlarmManager/WorkManager-backed reminders.)
+- **빠른 추가 플로우** – Floating Action Button으로 일정/할 일을 최소 입력으로 즉시 등록할 수 있습니다. (Quick add FAB flow for tasks and events.)
 
-## Core capabilities (주요 기능)
-- **Scheduler & task lists** – Create and review day/week/month plans with completion tracking.
-  **스케줄러와 작업 목록** – 일·주·월 단위 계획을 생성하고 완료 상태를 추적합니다.
-- **Reminder orchestration** – Schedule lead-time reminders through the AlarmManager/WorkManager integration; recurrence editing remains TODO.
-  **알림 오케스트레이션** – AlarmManager/WorkManager 연동으로 리드타임 알림을 예약하며 반복 주기 편집은 아직 미구현입니다.
-- **Compose-first UI entry point** – `CalendarApp` boots a Compose shell that is ready to wire to navigation and storage.
-  **Compose 중심 UI 진입점** – `CalendarApp`이 내비게이션과 저장소를 연결하기 쉬운 Compose 셸을 제공합니다.
+## 주요 기능
+- 일정, 할 일, 리마인더 도메인 모델과 리포지토리가 구축되어 있습니다.
+- `AgendaAggregator`가 Day/Week/Month 뷰를 위한 데이터를 집계하고 `AgendaViewModel`이 상태를 노출합니다.
+- 스와이프 완료, 상세 시트, 상태 토글 등 상호작용이 Compose로 구현되어 있습니다.
+- Compose Preview와 기본 Compose UI 테스트가 추가되어 주요 뷰 회귀를 빠르게 검증할 수 있습니다.
 
-## Repository layout (저장소 구성)
-- `app/src/main/kotlin/` – Domain models, aggregators, repositories, reminder orchestration, and Compose agenda screens.
-  `app/src/main/kotlin/` – 도메인 모델, 애그리게이터, 리포지토리, 알림 오케스트레이션, Compose 아젠다 화면.
-- `docs/` – Requirements, architecture decisions, UX journey maps, progress audits, and roadmap.
-  `docs/` – 요구사항, 아키텍처 결정, UX 여정 지도, 진행 상황 점검, 로드맵 문서.
+## 저장소 구조
+- `app/src/main/kotlin/` – 도메인 모델, 애그리게이터, 리포지토리, 알림 오케스트레이션, Compose UI.
+- `app/src/main/res/` – Material 3 테마 및 기본 리소스.
+- `docs/` – 요구사항, 아키텍처, UX 플로우, 진행 상황 문서.
 
-## Getting started (시작하기)
-These files are intended as a foundation for a full Android Studio project.
+## 시작 방법
+1. 이 레포지토리를 Android Studio에서 열거나 `app/src/main/kotlin`을 기존 프로젝트로 복사합니다.
+2. 필요 시 `gradle wrapper --gradle-version 8.5` 명령으로 Gradle 래퍼를 생성합니다.
+3. Room 또는 다른 영속성 계층과 AlarmManager/WorkManager 권한 플로우를 실제 앱 환경에 맞게 연결합니다.
+4. `docs/ux-flows.md`를 참고해 내비게이션 및 추가 화면을 구성합니다.
 
-이 레포지토리는 안드로이드 스튜디오 프로젝트를 부트스트랩하기 위한 기반입니다.
+## 품질 및 테스트 현황
+- `AgendaScreen`에 대표 상태(로딩, 빈 목록, 데이터 로드)를 시각화하는 Compose Preview가 추가되었습니다.
+- 기본 Compose UI 계측 테스트(`AgendaScreenTest`)가 FAB/리스트 표시 여부를 검증합니다.
+- Aggregator, Reminder, ViewModel 단위 테스트가 포함되어 있으며, 도메인 회귀 보강 테스트는 추가 작업으로 남아 있습니다.
 
-1. Copy `app/src/main/kotlin` into your project or open this repository directly in Android Studio.
-   `app/src/main/kotlin` 패키지를 프로젝트에 복사하거나 이 레포를 Android Studio에서 직접 엽니다.
-2. Wire domain classes to persistence (Room, etc.) and Android alarm APIs.
-   도메인 클래스를 영속성 계층(Room 등)과 안드로이드 알람 API에 연결합니다.
-3. Implement Compose navigation and surfaces guided by `docs/ux-flows.md`.
-   `docs/ux-flows.md`를 참고하여 Compose 내비게이션과 화면을 구현합니다.
+## 현재 상태 진단
+### 완료됨
+- 도메인·데이터 레이어 및 Room 연동, 리마인더 오케스트레이션, 빠른 추가 플로우.
+- Compose Agenda 셸과 상호작용(스와이프 완료, 상세 시트, 상태 토글).
+- Compose Preview와 기본 UI 테스트를 통해 화면 회귀 점검의 출발점을 마련했습니다.
 
-### Build tooling (빌드 도구)
-- The prototype does **not** ship with a Gradle wrapper; generate one via `gradle wrapper --gradle-version 8.5` (or your Studio version).
-  현재 Gradle 래퍼가 없으므로 `gradle wrapper --gradle-version 8.5`(또는 사용 중인 버전)으로 생성하세요.
-- Android Studio can also create/update the wrapper on first sync.
-  Android Studio 첫 동기화 시 래퍼를 자동으로 생성하거나 업데이트할 수 있습니다.
+### 부분 완료
+- 접근성 및 세부 UI 폴리시(특히 빈 상태·탭 포커스 경험) 추가 다듬기.
+- ViewModel/도메인 추가 단위 테스트로 일·주·월 집계 정확성 보강 필요.
 
-## Current status diagnosis (현 상태 진단)
-### What is complete (완료됨)
-- **Domain & data** – `Task`, `CalendarEvent`, `Reminder` models, repositories, and Room wiring are implemented.
-  **도메인 & 데이터** – `Task`, `CalendarEvent`, `Reminder` 모델과 리포지토리, Room 구성이 구현되어 있습니다.
-- **Agenda aggregation** – `AgendaAggregator` groups schedules for day/week/month views and feeds `AgendaViewModel` state.
-  **아젠다 집계** – `AgendaAggregator`가 일·주·월 데이터를 묶어 `AgendaViewModel`에 제공합니다.
-- **Compose shell** – `CalendarApp`/`AgendaRoute` render agenda tabs, list scaffolds, swipe-to-complete rows, and detail sheets backed by the view model.
-  **Compose 셸** – `CalendarApp`과 `AgendaRoute`가 탭, 리스트 스캐폴드, 스와이프 완료 행, 상세 시트를 뷰모델과 연동합니다.
-- **Unit tests** – Aggregator, reminder orchestration, and `AgendaViewModel` tests validate core scheduling logic.
-  **단위 테스트** – 애그리게이터, 알림 오케스트레이터, `AgendaViewModel` 테스트로 핵심 스케줄링 로직을 검증합니다.
-- **Quick add flow** – The floating action button launches a sheet to capture new tasks or events with default dates.
-  **빠른 추가 플로우** – 플로팅 액션 버튼으로 시트를 열어 기본 날짜와 함께 일정·할 일을 즉시 등록할 수 있습니다.
-- **Reminder orchestration** – `ReminderOrchestrator` now drives `AndroidReminderScheduler`, wiring AlarmManager/WorkManager alarms and an in-app notification permission prompt.
-  **알림 오케스트레이션** – `ReminderOrchestrator`가 `AndroidReminderScheduler`와 연결되어 AlarmManager/WorkManager 알람을 예약하고 앱 내 알림 권한 안내를 제공합니다.
+### 미구현
+- Gradle 래퍼 및 CI 파이프라인.
+- Room 기반 영속 데이터 저장 및 알림 영속화 확장 작업.
 
-### Partially done (부분 완료)
-- **Interactive UI polish** – Agenda detail sheet toggles and swipe actions are present, but require QA and accessibility review.
-  **상호작용 다듬기** – 아젠다 상세 시트와 스와이프 제스처가 구현되어 있으나 QA/접근성 점검이 필요합니다.
-- **Quality tooling** – ViewModel/unit coverage exists, yet Compose previews and UI tests are still missing.
-  **품질 도구** – ViewModel/도메인 테스트는 있으나 Compose 프리뷰와 UI 테스트는 없습니다.
-
-### Not yet implemented (미구현)
-- **Gradle wrapper & CI** – The project cannot run automated builds until the Gradle wrapper and CI tasks are configured.
-  **Gradle 래퍼 & CI** – Gradle 래퍼와 CI 작업을 구성해야 자동 빌드가 가능합니다.
-
-## Priority roadmap (남은 핵심 과제)
-| Priority (우선순위) | Task (작업) | Status (상태) | Notes (메모) |
+## 우선순위 로드맵
+| 우선순위 | 작업 | 상태 | 메모 |
 | --- | --- | --- | --- |
-| P0 | Compose agenda layout polish (tabs, empty states, list accessibility) / Compose 일정 화면 세부 다듬기 | ✅ Skeleton in place, needs UX polish. / 뼈대 완료, UX 다듬기 필요 |
-| P0 | Agenda detail bottom sheet / 일정·할 일 상세 시트 | ✅ Opens with toggle/delete hooks; finalize flows. / 열림 및 토글/삭제 훅 존재, 플로우 마무리 필요 |
-| P0 | Quick add FAB workflow / 새 항목 빠른 추가 | ✅ FAB opens quick-add sheet for tasks & events. / FAB으로 일정·할 일을 즉시 추가 |
-| P1 | Reminder orchestration hand-off / 알림 연동 준비 | ✅ Wired AndroidReminderScheduler to AlarmManager·WorkManager and surfaced the permission prompt. / AlarmManager·WorkManager 연결 및 권한 안내 완료. |
-| P1 | Testing & previews / 테스트·프리뷰 추가 | 🚧 Add Compose previews + UI tests. / Compose 프리뷰·UI 테스트 추가 |
+| P0 | Compose 일정 화면 세부 다듬기 | ✅ | 탭·빈 상태·리스트 상호작용 골격 완성, 추가 UX 폴리시 진행 중 |
+| P0 | 일정·할 일 상세 시트 | ✅ | 토글·삭제·수정 흐름 연결 완료 |
+| P0 | 새 항목 빠른 추가 | ✅ | FAB 시트로 Task/Event 빠른 등록 지원 |
+| P1 | 알림 연동 준비 | ✅ | AndroidReminderScheduler ↔ AlarmManager·WorkManager, 권한 안내 연결 |
+| P1 | 테스트·프리뷰 추가 | ✅ | Agenda Compose Preview + UI 스모크 테스트 확보 |
+| P2 | 도메인/뷰모델 회귀 테스트 확대 | 🚧 | 주·월 집계 검증용 단위 테스트가 필요 |
 
-### Additional backlog (추가 백로그)
-- Expand reminder cadence and snooze actions on top of the AlarmManager/WorkManager integration.
-  AlarmManager/WorkManager 연동 위에 반복 주기와 스누즈 동작을 확장합니다.
-- Fill out Android resources (strings, themes, navigation graph) and internationalization.
-  문자열, 테마, 내비게이션 그래프 및 다국어 리소스를 채워 넣습니다.
-- Investigate backup/sync strategies once local persistence is stable.
-  로컬 저장이 안정화되면 백업/동기화 전략을 검토합니다.
+## 문서 모음
+- `docs/requirements.md` – 제품 요구사항과 페르소나.
+- `docs/architecture.md` – 아키텍처 결정과 모듈 책임.
+- `docs/ux-flows.md` – Compose 내비게이션과 사용자 플로우.
+- `docs/status-overview.md`, `docs/progress-audit.md` – 과거 진행 상황 기록.
+- `docs/next-steps.md` – 세부 체크리스트 및 향후 계획.
 
-## Documentation index (문서 안내)
-- `docs/requirements.md` – Product requirements and personas.
-  `docs/requirements.md` – 제품 요구사항과 페르소나.
-- `docs/architecture.md` – Architectural decisions and module responsibilities.
-  `docs/architecture.md` – 아키텍처 결정과 모듈 책임.
-- `docs/ux-flows.md` – Compose navigation, user flows, and interaction notes.
-  `docs/ux-flows.md` – Compose 내비게이션과 사용자 플로우 노트.
-- `docs/status-overview.md` / `docs/progress-audit.md` – Historical audits retained for traceability; this README now reflects the unified status.
-  `docs/status-overview.md` / `docs/progress-audit.md` – 기록 보존용 과거 점검 문서이며, 최신 현황은 README에 통합되었습니다.
-- `docs/next-steps.md` – Detailed checklist supporting the roadmap above.
-  `docs/next-steps.md` – 위 로드맵을 뒷받침하는 세부 체크리스트.
-
-## Permissions (권한)
-The application requests the `POST_NOTIFICATIONS` runtime permission on Android 13+ and declares `SCHEDULE_EXACT_ALARM` for precise reminders.
-
-이 애플리케이션은 정확한 리마인더 제공을 위해 Android 13+에서 `POST_NOTIFICATIONS` 런타임 권한을 요청하고 `SCHEDULE_EXACT_ALARM` 권한을 선언합니다.
+## 권한
+Android 13 이상에서 `POST_NOTIFICATIONS` 런타임 권한을 요청하며, 정확한 알림을 위해 `SCHEDULE_EXACT_ALARM` 권한을 선언합니다. (Requires `POST_NOTIFICATIONS` runtime permission on Android 13+ and declares `SCHEDULE_EXACT_ALARM`.)

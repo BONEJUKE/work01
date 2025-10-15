@@ -22,8 +22,8 @@
 4. [x] **알림 연결 준비**
    - [x] `ReminderOrchestrator`에 `AndroidReminderScheduler`를 연결해 AlarmManager/WorkManager와 연동합니다.
    - [x] 알림 권한 확인/요청 흐름을 Compose에서 안내합니다.
-5. [ ] **품질 보강**
-   - [ ] Compose Preview와 UI 테스트를 추가해 회귀를 막습니다.
+5. [x] **품질 보강**
+   - [x] Compose Preview와 UI 테스트를 추가해 회귀를 막습니다.
    - [ ] ViewModel/도메인 단위 테스트로 Day/Week/Month 집계를 검증합니다.
 
 ## 이후 확장 아이디어
