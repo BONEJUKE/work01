@@ -34,17 +34,25 @@
 
 ## 현재 상태 진단
 ### 완료됨
-- 도메인·데이터 레이어 및 Room 연동, 리마인더 오케스트레이션, 빠른 추가 플로우.
-- Compose Agenda 셸과 상호작용(스와이프 완료, 상세 시트, 상태 토글).
-- 접근성 및 세부 UI 폴리시(빈 상태 안내, 탐색 컨트롤, 요약 카드 대체 텍스트)를 강화했습니다.
-- Compose Preview와 기본 UI 테스트를 통해 화면 회귀 점검의 출발점을 마련했습니다.
+- Compose Agenda 화면이 일·주·월 탭, 상세 바텀 시트, 스와이프 제스처, 빠른 추가, 알림 권한 안내까지 포함해 구현되었습니다.
+- `AgendaViewModel`이 애그리게이터·리포지토리와 연결되어 일정/할 일 토글·삭제·빠른 추가 시 리마인더 스케줄링까지 처리합니다.
+- `ReminderOrchestrator`와 `AndroidReminderScheduler`가 AlarmManager·WorkManager·워커/리시버 연동으로 알림 예약 파이프라인을 구성했습니다.
+- 단위/계측 테스트로 애그리게이터, 뷰모델, Compose Agenda 화면 핵심 시나리오를 검증합니다.
 - Gradle 래퍼와 GitHub Actions CI 워크플로가 포함되어 일관된 빌드 환경을 제공합니다.
 
 ### 부분 완료
-- ViewModel/도메인 추가 단위 테스트로 일·주·월 집계 정확성 보강 필요.
+- Room 데이터베이스/DAO/Repository는 준비돼 있으나 `QuickStartAppContainer`가 인메모리 저장소를 주입해 실제 영속 계층 연결이 미완료입니다.
+- 리마인더 예약은 가능하지만 Task/Event의 `reminders` 정보가 인메모리 샘플과 함께만 유지되어 앱 재시작 시 복원 로직이 부족합니다.
 
 ### 미구현
-- Room 기반 영속 데이터 저장 및 알림 영속화 확장 작업.
+- Room DB를 실제 앱 컨테이너에 연결해 프로세스/앱 재시작 간에도 일정·할 일을 보존해야 합니다.
+- 예약된 리마인더 메타데이터를 저장·복구하고 기기 재부팅 이후 알람을 재스케줄링하는 흐름이 필요합니다.
+- WorkManager/AlarmManager 연동을 계측 또는 통합 테스트로 검증하는 자동화가 아직 없습니다.
+
+### 남은 과제
+1. Room 기반 `AppContainer`를 작성해 `CalendarDatabase` 빌드 및 `RoomTaskRepository`/`RoomEventRepository`를 주입하고 인메모리 컨테이너를 교체합니다.
+2. 리마인더 저장/복원 전략을 추가해 `ReminderOrchestrator` 스케줄이 기기 재부팅이나 앱 재시작 후에도 유지되도록 합니다.
+3. 알림 권한 안내·빠른 추가 플로우에 대한 계측/통합 테스트를 보강해 회귀를 방지합니다.
 
 ## 우선순위 로드맵
 | 우선순위 | 작업 | 상태 | 메모 |
