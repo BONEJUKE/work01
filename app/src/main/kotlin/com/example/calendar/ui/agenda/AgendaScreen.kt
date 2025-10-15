@@ -65,6 +65,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
 import com.example.calendar.data.AgendaPeriod
 import com.example.calendar.data.CalendarEvent
 import com.example.calendar.data.Task
@@ -74,8 +75,10 @@ import com.example.calendar.ui.AgendaUiState
 import com.example.calendar.ui.AgendaUserMessage
 import com.example.calendar.ui.AgendaViewModel
 import com.example.calendar.ui.QuickAddType
+import com.example.calendar.ui.theme.CalendarTheme
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -1519,6 +1522,112 @@ private fun periodLabel(period: AgendaPeriod): String = when (period) {
         YearMonth.of(period.year, period.month).atDay(1)
     )
 }
+
+@Preview(name = "일간 아젠다 – 데이터 로드 완료", showBackground = true)
+@Composable
+private fun AgendaScreenLoadedPreview() {
+    CalendarTheme {
+        AgendaScreen(
+            uiState = previewAgendaUiState(),
+            selectedTab = AgendaTab.Daily,
+            onTabSelected = {},
+            onPreviousPeriod = {},
+            onNextPeriod = {},
+            onToggleTask = {},
+            onTaskClick = {},
+            onEventClick = {},
+            onWeekDaySelected = {},
+            onMonthDaySelected = {},
+            focusedDay = PreviewAgendaDate,
+            period = AgendaPeriod.Day(PreviewAgendaDate),
+            onQuickAddClick = {}
+        )
+    }
+}
+
+@Preview(name = "일간 아젠다 – 비어 있는 상태", showBackground = true)
+@Composable
+private fun AgendaScreenEmptyPreview() {
+    CalendarTheme {
+        AgendaScreen(
+            uiState = AgendaUiState(
+                snapshot = null,
+                isLoading = false,
+                error = null,
+                userMessage = null
+            ),
+            selectedTab = AgendaTab.Daily,
+            onTabSelected = {},
+            onPreviousPeriod = {},
+            onNextPeriod = {},
+            onToggleTask = {},
+            onTaskClick = {},
+            onEventClick = {},
+            onWeekDaySelected = {},
+            onMonthDaySelected = {},
+            focusedDay = PreviewAgendaDate,
+            period = AgendaPeriod.Day(PreviewAgendaDate),
+            onQuickAddClick = {}
+        )
+    }
+}
+
+internal fun previewAgendaUiState(): AgendaUiState {
+    return AgendaUiState(
+        snapshot = previewAgendaSnapshot(),
+        isLoading = false,
+        error = null,
+        userMessage = null
+    )
+}
+
+internal fun previewAgendaSnapshot(): AgendaSnapshot {
+    return AgendaSnapshot(
+        rangeStart = PreviewAgendaDate,
+        tasks = previewAgendaTasks,
+        events = previewAgendaEvents
+    )
+}
+
+private val PreviewAgendaDate: LocalDate = LocalDate.of(2024, 5, 21)
+
+private val previewAgendaTasks: List<Task> = listOf(
+    Task(
+        title = "디자인 시안 검토",
+        description = "UX 다듬기 피드백 정리",
+        status = TaskStatus.InProgress,
+        dueAt = LocalDateTime.of(PreviewAgendaDate, LocalTime.of(11, 0)),
+        period = AgendaPeriod.Day(PreviewAgendaDate)
+    ),
+    Task(
+        title = "출시 체크리스트 업데이트",
+        status = TaskStatus.Completed,
+        dueAt = LocalDateTime.of(PreviewAgendaDate, LocalTime.of(15, 30)),
+        period = AgendaPeriod.Day(PreviewAgendaDate)
+    ),
+    Task(
+        title = "QA 버그 triage",
+        status = TaskStatus.Pending,
+        dueAt = LocalDateTime.of(PreviewAgendaDate, LocalTime.of(17, 0)),
+        period = AgendaPeriod.Week(PreviewAgendaDate.startOfWeek())
+    )
+)
+
+private val previewAgendaEvents: List<CalendarEvent> = listOf(
+    CalendarEvent(
+        title = "팀 스탠드업",
+        description = "목표 공유",
+        start = LocalDateTime.of(PreviewAgendaDate, LocalTime.of(9, 30)),
+        end = LocalDateTime.of(PreviewAgendaDate, LocalTime.of(10, 0)),
+        location = "회의실 A"
+    ),
+    CalendarEvent(
+        title = "디자인 리뷰",
+        start = LocalDateTime.of(PreviewAgendaDate, LocalTime.of(13, 0)),
+        end = LocalDateTime.of(PreviewAgendaDate, LocalTime.of(14, 0)),
+        location = "온라인 미팅"
+    )
+)
 
 private data class QuickAddTaskInput(
     val title: String,
