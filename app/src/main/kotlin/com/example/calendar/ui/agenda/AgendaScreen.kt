@@ -18,6 +18,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -27,6 +30,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
@@ -57,8 +61,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -410,7 +418,7 @@ fun AgendaScreen(
                         onEventClick = onEventClick,
                         modifier = Modifier.fillMaxSize()
                     )
-                    else -> AgendaEmptyState()
+                    else -> AgendaEmptyState(onQuickAddClick = onQuickAddClick)
                 }
             }
             if (notificationPrompt != null) {
@@ -639,6 +647,12 @@ private fun MonthDayCell(
             .clip(MaterialTheme.shapes.small)
             .background(containerColor)
             .clickable(onClick = onClick)
+            .semantics {
+                role = Role.Button
+                contentDescription = date.format(DayFormatter)
+                selected = isSelected
+                stateDescription = if (isSelected) "선택됨" else "선택되지 않음"
+            }
             .padding(vertical = 12.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -657,17 +671,17 @@ private fun PeriodControls(
     onNextPeriod: () -> Unit
 ) {
     Row {
-        TextButton(
-            onClick = onPreviousPeriod,
-            modifier = Modifier.semantics { contentDescription = "Previous period" }
-        ) {
-            Text("◀")
+        IconButton(onClick = onPreviousPeriod) {
+            Icon(
+                imageVector = Icons.Filled.ChevronLeft,
+                contentDescription = "이전 기간으로 이동"
+            )
         }
-        TextButton(
-            onClick = onNextPeriod,
-            modifier = Modifier.semantics { contentDescription = "Next period" }
-        ) {
-            Text("▶")
+        IconButton(onClick = onNextPeriod) {
+            Icon(
+                imageVector = Icons.Filled.ChevronRight,
+                contentDescription = "다음 기간으로 이동"
+            )
         }
     }
 }
@@ -799,7 +813,9 @@ private fun AgendaList(
             SectionTitle(text = "Events")
         }
         if (snapshot.events.isEmpty()) {
-            item { EmptySectionMessage(message = "No events scheduled") }
+            item {
+                EmptySectionMessage(message = "이 기간에는 등록된 일정이 없어요")
+            }
         } else {
             items(snapshot.events) { event ->
                 EventCard(event = event, onClick = { onEventClick(event) })
@@ -809,7 +825,9 @@ private fun AgendaList(
             SectionTitle(text = "Tasks")
         }
         if (snapshot.tasks.isEmpty()) {
-            item { EmptySectionMessage(message = "No tasks for this period") }
+            item {
+                EmptySectionMessage(message = "완료해야 할 할 일이 없어요")
+            }
         } else {
             items(snapshot.tasks, key = { it.id }) { task ->
                 SwipeableTaskRow(
@@ -829,7 +847,33 @@ private fun AgendaSummaryCard(
     snapshot: AgendaSnapshot,
     modifier: Modifier = Modifier
 ) {
-    Card(modifier = modifier.fillMaxWidth()) {
+    val summaryDescription = buildString {
+        append(title)
+        append(". ")
+        append(period)
+        append(" 일정 요약. ")
+        append("등록된 일정 ")
+        append(snapshot.events.size)
+        append("건, 대기 또는 진행 중인 할 일 ")
+        append(snapshot.pendingCount)
+        append("건, 완료된 할 일 ")
+        append(snapshot.completedCount)
+        append("건입니다.")
+        if (snapshot.overdueTasks.isNotEmpty()) {
+            append(' ')
+            append("마감이 지난 할 일 ")
+            append(snapshot.overdueTasks.size)
+            append("건이 있어요.")
+        }
+    }
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) {
+                contentDescription = summaryDescription
+            }
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(text = title, style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(4.dp))
@@ -1446,25 +1490,76 @@ private fun QuickAddSheet(
 
 @Composable
 private fun AgendaLoading() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .semantics {
+                contentDescription = "일정을 불러오는 중입니다"
+                liveRegion = LiveRegionMode.Polite
+            },
+        contentAlignment = Alignment.Center
+    ) {
         CircularProgressIndicator()
     }
 }
 
 @Composable
 private fun AgendaError(error: Throwable) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .semantics {
+                role = Role.Alert
+                contentDescription = error.localizedMessage
+                    ?: "일정을 불러오는 중 문제가 발생했어요"
+                liveRegion = LiveRegionMode.Assertive
+            },
+        contentAlignment = Alignment.Center
+    ) {
         Text(
-            text = error.localizedMessage ?: "Something went wrong",
-            color = MaterialTheme.colorScheme.error
+            text = error.localizedMessage ?: "일정을 불러오는 중 문제가 발생했어요",
+            color = MaterialTheme.colorScheme.error,
+            textAlign = TextAlign.Center
         )
     }
 }
 
 @Composable
-private fun AgendaEmptyState() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("No agenda items available")
+private fun AgendaEmptyState(onQuickAddClick: () -> Unit = {}) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 32.dp)
+            .semantics {
+                liveRegion = LiveRegionMode.Polite
+                contentDescription = "아직 일정이 없어요. 빠른 추가 버튼으로 오늘의 첫 일정이나 할 일을 만들어 보세요."
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Inbox,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = "아직 일정이 없어요",
+                style = MaterialTheme.typography.titleMedium,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = "빠른 추가 버튼으로 오늘의 첫 일정이나 할 일을 만들어 보세요.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            Button(onClick = onQuickAddClick) {
+                Text("빠른 추가 열기")
+            }
+        }
     }
 }
 
@@ -1674,7 +1769,11 @@ private fun EmptySectionMessage(message: String) {
     Text(
         text = message,
         style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.semantics {
+            liveRegion = LiveRegionMode.Polite
+            contentDescription = message
+        }
     )
 }
 
