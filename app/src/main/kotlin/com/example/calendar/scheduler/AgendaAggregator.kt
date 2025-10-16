@@ -3,6 +3,8 @@ package com.example.calendar.scheduler
 import com.example.calendar.data.AgendaPeriod
 import com.example.calendar.data.CalendarEvent
 import com.example.calendar.data.EventRepository
+import com.example.calendar.data.Recurrence
+import com.example.calendar.data.RecurrenceRule
 import com.example.calendar.data.Task
 import com.example.calendar.data.TaskRepository
 import kotlinx.coroutines.flow.Flow
@@ -28,7 +30,11 @@ class AgendaAggregator(
         taskRepository.observeTasksForDay(date),
         eventRepository.observeEventsForDay(date)
     ) { tasks, events ->
-        AgendaSnapshot(date, tasks, events)
+        AgendaSnapshot(
+            rangeStart = date,
+            tasks = tasks,
+            events = events.expandRecurringInstances(date, date)
+        )
     }
 
     private fun observeWeek(start: LocalDate): Flow<AgendaSnapshot> {
@@ -37,7 +43,11 @@ class AgendaAggregator(
             taskRepository.observeTasksForWeek(start),
             eventRepository.observeEventsForRange(start, end)
         ) { tasks, events ->
-            AgendaSnapshot(start, tasks, events)
+            AgendaSnapshot(
+                rangeStart = start,
+                tasks = tasks,
+                events = events.expandRecurringInstances(start, end)
+            )
         }.map { snapshot -> snapshot.copy(rangeEnd = end) }
     }
 
@@ -48,7 +58,11 @@ class AgendaAggregator(
             taskRepository.observeTasksForMonth(year, month),
             eventRepository.observeEventsForRange(firstDay, lastDay)
         ) { tasks, events ->
-            AgendaSnapshot(firstDay, tasks, events)
+            AgendaSnapshot(
+                rangeStart = firstDay,
+                tasks = tasks,
+                events = events.expandRecurringInstances(firstDay, lastDay)
+            )
         }.map { snapshot -> snapshot.copy(rangeEnd = lastDay) }
     }
 }

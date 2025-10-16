@@ -3,6 +3,8 @@ package com.example.calendar.scheduler
 import com.example.calendar.data.AgendaPeriod
 import com.example.calendar.data.CalendarEvent
 import com.example.calendar.data.EventRepository
+import com.example.calendar.data.Recurrence
+import com.example.calendar.data.RecurrenceRule
 import com.example.calendar.data.Task
 import com.example.calendar.data.TaskRepository
 import com.example.calendar.data.TaskStatus
@@ -15,6 +17,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 
 class AgendaAggregatorTest {
 

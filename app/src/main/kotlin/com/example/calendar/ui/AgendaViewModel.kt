@@ -76,6 +76,26 @@ class AgendaViewModel(
         }
     }
 
+    fun toggleShowCompletedTasks() {
+        _state.update { current ->
+            current.copy(
+                filters = current.filters.copy(
+                    showCompletedTasks = !current.filters.showCompletedTasks
+                )
+            )
+        }
+    }
+
+    fun toggleShowRecurringEvents() {
+        _state.update { current ->
+            current.copy(
+                filters = current.filters.copy(
+                    showRecurringEvents = !current.filters.showRecurringEvents
+                )
+            )
+        }
+    }
+
     suspend fun quickAddTask(
         title: String,
         focusDate: LocalDate,
@@ -203,7 +223,8 @@ data class AgendaUiState(
     val snapshot: AgendaSnapshot? = null,
     val isLoading: Boolean = true,
     val error: Throwable? = null,
-    val userMessage: AgendaUserMessage? = null
+    val userMessage: AgendaUserMessage? = null,
+    val filters: AgendaFilters = AgendaFilters()
 ) {
     fun updateTask(task: Task): AgendaUiState {
         val current = snapshot ?: return this
@@ -223,6 +244,11 @@ data class AgendaUiState(
         return copy(snapshot = current.copy(events = current.events.filterNot { it.id == id }))
     }
 }
+
+data class AgendaFilters(
+    val showCompletedTasks: Boolean = true,
+    val showRecurringEvents: Boolean = true
+)
 
 private val DEFAULT_TASK_TIME: LocalTime = LocalTime.of(9, 0)
 private val DEFAULT_EVENT_START: LocalTime = LocalTime.of(9, 0)

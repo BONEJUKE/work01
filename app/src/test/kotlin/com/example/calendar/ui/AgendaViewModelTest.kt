@@ -194,6 +194,24 @@ class AgendaViewModelTest {
         assertEquals(1, snapshot.pendingCount)
     }
 
+    @Test
+    fun `toggle show completed tasks updates filter state`() = runTest(dispatcher) {
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.filters.showCompletedTasks)
+        viewModel.toggleShowCompletedTasks()
+        assertFalse(viewModel.state.value.filters.showCompletedTasks)
+    }
+
+    @Test
+    fun `toggle show recurring events updates filter state`() = runTest(dispatcher) {
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.filters.showRecurringEvents)
+        viewModel.toggleShowRecurringEvents()
+        assertFalse(viewModel.state.value.filters.showRecurringEvents)
+    }
+
     private class RecordingReminderScheduler : ReminderScheduler {
         data class Scheduled(val id: String, val payload: ReminderPayload)
 
