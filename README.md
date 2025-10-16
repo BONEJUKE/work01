@@ -35,6 +35,13 @@
 - GitHub Actions 워크플로(`.github/workflows/ci.yml`)가 래퍼 검증과 테스트 실행을 자동화합니다.
 
 ## 현재 상태 진단
+### 진행 상황 요약
+| 영역 | 진행률 |
+| --- | --- |
+| 기능 구현 | <progress value="85" max="100"></progress> 85% |
+| 단위·통합 테스트 | <progress value="65" max="100"></progress> 65% |
+| 실기기 검증 및 배포 준비 | <progress value="40" max="100"></progress> 40% |
+
 ### 완료됨
 - Compose Agenda 화면이 일·주·월 탭, 상세 바텀 시트, 스와이프 제스처, 빠른 추가, 알림 권한 안내까지 포함해 구현되었습니다.
 - `AgendaViewModel`이 애그리게이터·리포지토리와 연결되어 일정/할 일 토글·삭제·빠른 추가 시 리마인더 스케줄링까지 처리합니다.
