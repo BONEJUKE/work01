@@ -40,9 +40,16 @@ class AgendaViewModelTest {
 
     private lateinit var task: Task
     private lateinit var event: CalendarEvent
+    private val weekStart = today
+    private val monthPeriod = AgendaPeriod.Month(today.year, today.monthValue)
+
     private lateinit var scheduler: RecordingReminderScheduler
     private lateinit var store: InMemoryReminderStore
     private lateinit var viewModel: AgendaViewModel
+    private lateinit var weekTask: Task
+    private lateinit var monthTask: Task
+    private lateinit var weekEvent: CalendarEvent
+    private lateinit var monthEvent: CalendarEvent
 
     @Before
     fun setUp() {
@@ -65,8 +72,33 @@ class AgendaViewModelTest {
             reminders = listOf(Reminder(minutesBefore = 60))
         )
 
-        val taskRepository = InMemoryTaskRepository(listOf(task))
-        val eventRepository = InMemoryEventRepository(listOf(event))
+        weekTask = Task(
+            id = UUID.fromString("33333333-3333-3333-3333-333333333333"),
+            title = "Prep weekly sync",
+            period = AgendaPeriod.Week(weekStart),
+            dueAt = LocalDateTime.of(weekStart.plusDays(2), LocalTime.of(14, 30))
+        )
+        monthTask = Task(
+            id = UUID.fromString("44444444-4444-4444-4444-444444444444"),
+            title = "Publish roadmap",
+            period = monthPeriod,
+            dueAt = LocalDateTime.of(today.withDayOfMonth(25), LocalTime.of(17, 0))
+        )
+        weekEvent = CalendarEvent(
+            id = UUID.fromString("55555555-5555-5555-5555-555555555555"),
+            title = "Leadership sync",
+            start = LocalDateTime.of(weekStart.plusDays(3), LocalTime.of(16, 0)),
+            end = LocalDateTime.of(weekStart.plusDays(3), LocalTime.of(17, 0))
+        )
+        monthEvent = CalendarEvent(
+            id = UUID.fromString("66666666-6666-6666-6666-666666666666"),
+            title = "Board review",
+            start = LocalDateTime.of(today.withDayOfMonth(28), LocalTime.of(9, 0)),
+            end = LocalDateTime.of(today.withDayOfMonth(28), LocalTime.of(10, 0))
+        )
+
+        val taskRepository = InMemoryTaskRepository(listOf(task, weekTask, monthTask))
+        val eventRepository = InMemoryEventRepository(listOf(event, weekEvent, monthEvent))
         val aggregator = AgendaAggregator(taskRepository, eventRepository)
         scheduler = RecordingReminderScheduler()
         store = InMemoryReminderStore()
@@ -134,6 +166,32 @@ class AgendaViewModelTest {
         assertNotNull(updated)
         assertTrue(updated!!.events.isEmpty())
         assertEquals(listOf("event-${event.id}"), scheduler.canceled)
+    }
+
+    @Test
+    fun `switching to week period loads aggregated snapshot`() = runTest(dispatcher) {
+        viewModel.setPeriod(AgendaPeriod.Week(weekStart))
+        advanceUntilIdle()
+
+        val snapshot = requireNotNull(viewModel.state.value.snapshot)
+        assertEquals(weekStart, snapshot.rangeStart)
+        assertEquals(weekStart.plusDays(6), snapshot.rangeEnd)
+        assertEquals(listOf(weekTask), snapshot.tasks)
+        assertEquals(listOf(weekEvent), snapshot.events)
+        assertEquals(1, snapshot.pendingCount)
+    }
+
+    @Test
+    fun `switching to month period loads aggregated snapshot`() = runTest(dispatcher) {
+        viewModel.setPeriod(monthPeriod)
+        advanceUntilIdle()
+
+        val snapshot = requireNotNull(viewModel.state.value.snapshot)
+        assertEquals(today.withDayOfMonth(1), snapshot.rangeStart)
+        assertEquals(today.withDayOfMonth(today.lengthOfMonth()), snapshot.rangeEnd)
+        assertEquals(listOf(monthTask), snapshot.tasks)
+        assertEquals(listOf(monthEvent), snapshot.events)
+        assertEquals(1, snapshot.pendingCount)
     }
 
     private class RecordingReminderScheduler : ReminderScheduler {
