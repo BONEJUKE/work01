@@ -12,7 +12,9 @@ import com.example.calendar.data.Task
 import com.example.calendar.data.TaskRepository
 import com.example.calendar.data.TaskStatus
 import com.example.calendar.reminder.AndroidReminderScheduler
+import android.content.Context.MODE_PRIVATE
 import com.example.calendar.reminder.ReminderOrchestrator
+import com.example.calendar.reminder.SharedPreferencesReminderStore
 import com.example.calendar.scheduler.AgendaAggregator
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -99,13 +101,20 @@ class QuickStartAppContainer(
 
     private val workManager: WorkManager by lazy { WorkManager.getInstance(context) }
 
+    private val reminderStore by lazy {
+        SharedPreferencesReminderStore(
+            context.getSharedPreferences("calendar_reminders", MODE_PRIVATE)
+        )
+    }
+
     override val reminderOrchestrator: ReminderOrchestrator by lazy {
         ReminderOrchestrator(
             AndroidReminderScheduler(
                 context = context,
                 alarmManager = alarmManager,
                 workManager = workManager
-            )
+            ),
+            reminderStore
         )
     }
 

@@ -5,20 +5,21 @@ import com.example.calendar.data.CalendarEvent
 import com.example.calendar.data.Reminder
 import com.example.calendar.data.Task
 import com.example.calendar.data.TaskStatus
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.ZoneId
 
 class ReminderOrchestratorTest {
 
     @Test
     fun `schedules reminders for future triggers`() {
         val scheduler = FakeReminderScheduler()
-        val orchestrator = ReminderOrchestrator(scheduler, ZoneId.of("UTC"))
+        val store = FakeReminderStore()
+        val orchestrator = ReminderOrchestrator(scheduler, store, ZoneId.of("UTC"))
         val dueAt = LocalDateTime.of(2099, 1, 1, 9, 0)
         val task = Task(
             title = "Prepare launch",
@@ -45,12 +46,17 @@ class ReminderOrchestratorTest {
         assertEquals("task-${task.id}-1", second.id)
         assertEquals(dueAt.minusMinutes(60), second.triggerAt)
         assertFalse(second.payload.allowSnooze)
+
+        val stored = store.read("task-${task.id}")
+        assertEquals(2, stored.size)
+        assertEquals(first.id, stored[0].id)
     }
 
     @Test
     fun `skips reminders that would trigger in the past`() {
         val scheduler = FakeReminderScheduler()
-        val orchestrator = ReminderOrchestrator(scheduler, ZoneId.of("UTC"))
+        val store = FakeReminderStore()
+        val orchestrator = ReminderOrchestrator(scheduler, store, ZoneId.of("UTC"))
         val now = LocalDateTime.now(ZoneId.of("UTC"))
         val dueAt = now.plusMinutes(30)
         val task = Task(
@@ -68,12 +74,14 @@ class ReminderOrchestratorTest {
         assertEquals(1, scheduler.scheduled.size)
         val scheduled = scheduler.scheduled.single()
         assertEquals(dueAt.minusMinutes(5), scheduled.triggerAt)
+        assertEquals(1, store.read("task-${task.id}").size)
     }
 
     @Test
     fun `schedules events without snooze support`() {
         val scheduler = FakeReminderScheduler()
-        val orchestrator = ReminderOrchestrator(scheduler, ZoneId.of("UTC"))
+        val store = FakeReminderStore()
+        val orchestrator = ReminderOrchestrator(scheduler, store, ZoneId.of("UTC"))
         val start = LocalDateTime.of(2099, 6, 15, 14, 0)
         val event = CalendarEvent(
             title = "Design review",
@@ -89,38 +97,122 @@ class ReminderOrchestratorTest {
         assertEquals(start.minusMinutes(30), scheduled.triggerAt)
         assertFalse(scheduled.payload.allowSnooze)
         assertEquals("app://event/${event.id}", scheduled.payload.deepLink)
+        assertEquals(1, store.read("event-${event.id}").size)
     }
 
     @Test
-    fun `cancels reminders using composed identifiers`() {
+    fun `cancels reminders using stored identifiers`() {
         val scheduler = FakeReminderScheduler()
-        val orchestrator = ReminderOrchestrator(scheduler, ZoneId.of("UTC"))
+        val store = FakeReminderStore()
+        val orchestrator = ReminderOrchestrator(scheduler, store, ZoneId.of("UTC"))
+        val dueAt = LocalDateTime.of(2099, 1, 1, 9, 0)
         val task = Task(
             title = "Follow up",
-            period = AgendaPeriod.Day(LocalDate.now())
+            dueAt = dueAt,
+            period = AgendaPeriod.Day(LocalDate.of(2099, 1, 1)),
+            reminders = listOf(Reminder(minutesBefore = 30))
         )
         val event = CalendarEvent(
             title = "Retro",
-            start = LocalDateTime.of(2025, 1, 5, 10, 0),
-            end = LocalDateTime.of(2025, 1, 5, 11, 0)
+            start = LocalDateTime.of(2099, 1, 5, 10, 0),
+            end = LocalDateTime.of(2099, 1, 5, 11, 0),
+            reminders = listOf(Reminder(minutesBefore = 15))
         )
+
+        orchestrator.scheduleForTask(task)
+        orchestrator.scheduleForEvent(event)
 
         orchestrator.cancelForTask(task)
         orchestrator.cancelForEvent(event)
 
-        assertEquals(listOf("task-${task.id}", "event-${event.id}"), scheduler.cancelled)
+        assertTrue(store.read("task-${task.id}").isEmpty())
+        assertTrue(store.read("event-${event.id}").isEmpty())
+        assertEquals(
+            listOf("task-${task.id}-0", "event-${event.id}-0"),
+            scheduler.cancelled
+        )
+    }
+
+    @Test
+    fun `restores persisted reminders on initialization`() {
+        val scheduler = FakeReminderScheduler()
+        val store = FakeReminderStore()
+        val future = LocalDateTime.of(2099, 1, 1, 8, 0)
+        val stale = LocalDateTime.of(2000, 1, 1, 8, 0)
+        val taskId = "task-demo"
+        store.write(
+            taskId,
+            listOf(
+                StoredReminder(
+                    id = "$taskId-0",
+                    triggerAt = future,
+                    reminder = Reminder(minutesBefore = 30),
+                    payload = ReminderPayload(
+                        title = "Future",
+                        message = "30분 전에 알림",
+                        deepLink = "app://task/demo",
+                        allowSnooze = true
+                    )
+                )
+            )
+        )
+        store.write(
+            "event-demo",
+            listOf(
+                StoredReminder(
+                    id = "event-demo-0",
+                    triggerAt = stale,
+                    reminder = Reminder(minutesBefore = 10),
+                    payload = ReminderPayload(
+                        title = "Past",
+                        message = "10분 전에 알림",
+                        deepLink = "app://event/demo",
+                        allowSnooze = false
+                    )
+                )
+            )
+        )
+
+        ReminderOrchestrator(scheduler, store, ZoneId.of("UTC"))
+
+        assertEquals(1, scheduler.scheduled.size)
+        assertEquals("task-demo-0", scheduler.scheduled.single().id)
+        assertTrue(store.read("event-demo").isEmpty())
     }
 
     private class FakeReminderScheduler : ReminderScheduler {
         val scheduled = mutableListOf<ScheduledReminder>()
         val cancelled = mutableListOf<String>()
 
-        override fun scheduleReminder(id: String, triggerAt: LocalDateTime, reminder: Reminder, payload: ReminderPayload) {
+        override fun scheduleReminder(
+            id: String,
+            triggerAt: LocalDateTime,
+            reminder: Reminder,
+            payload: ReminderPayload
+        ) {
             scheduled += ScheduledReminder(id, triggerAt, reminder, payload)
         }
 
         override fun cancelReminder(id: String) {
             cancelled += id
+        }
+    }
+
+    private class FakeReminderStore : ReminderStore {
+        private val backing = linkedMapOf<String, MutableList<StoredReminder>>()
+
+        override fun write(baseId: String, reminders: List<StoredReminder>) {
+            backing[baseId] = reminders.toMutableList()
+        }
+
+        override fun read(baseId: String): List<StoredReminder> =
+            backing[baseId]?.toList() ?: emptyList()
+
+        override fun readAll(): Map<String, List<StoredReminder>> =
+            backing.mapValues { it.value.toList() }
+
+        override fun remove(baseId: String) {
+            backing.remove(baseId)
         }
     }
 
