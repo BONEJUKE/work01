@@ -30,7 +30,7 @@
 ## 품질 및 테스트 현황
 - `AgendaScreen`의 로딩·빈 상태·오류 UI에 접근성 안내 및 라이브 리전을 추가했습니다.
 - 기본 Compose UI 계측 테스트(`AgendaScreenTest`)가 FAB/리스트 표시 여부를 검증합니다.
-- Aggregator, Reminder, ViewModel 단위 테스트가 포함되어 있으며, 도메인 회귀 보강 테스트는 추가 작업으로 남아 있습니다.
+- Aggregator, Reminder, ViewModel 단위 테스트가 주·월 집계와 리마인더 재동기화 시나리오까지 커버하도록 확장되었습니다.
 - 새로운 계측 테스트(`CalendarAppNotificationTest`, `QuickAddFlowTest`)가 알림 권한 안내 카드와 빠른 추가 플로우 회귀를 막습니다.
 - GitHub Actions 워크플로(`.github/workflows/ci.yml`)가 래퍼 검증과 테스트 실행을 자동화합니다.
 
@@ -43,20 +43,18 @@
 - `RoomAppContainer`가 Room 데이터베이스 및 리포지토리를 앱 컨테이너에 연결해 프로세스 재시작 후에도 데이터가 유지됩니다.
 - `ReminderStoreSynchronizer`가 SharedPreferences 리마인더 저장소를 Room 데이터와 자동 동기화해 다중 기기/계정 시나리오를 대비합니다.
 - 단위/계측 테스트로 애그리게이터, 뷰모델, Compose Agenda 화면 핵심 시나리오를 검증합니다.
+- 주·월 뷰 회귀 단위 테스트와 리마인더 재동기화 회귀 테스트를 추가해 재부팅·기간 변경 시나리오를 모의 검증합니다.
 - Gradle 래퍼와 GitHub Actions CI 워크플로가 포함되어 일관된 빌드 환경을 제공합니다.
 
 ### 부분 완료
 - 다중 기기/백그라운드 동기화를 대비한 리마인더 재동기화 흐름은 구현됐지만, 실제 단말의 재부팅·네트워크 전환 시나리오 검증이 필요합니다.
-- ViewModel/도메인 회귀 단위 테스트 확장은 여전히 진행 중입니다.
 
 ### 미구현
 - WorkManager/AlarmManager 기반 알림이 실제 기기/에뮬레이터에서 예상대로 동작하는지에 대한 통합 테스트.
 - 클라우드 동기화나 외부 캘린더 가져오기 같은 대량 데이터 시나리오에 대한 성능/안정성 검증.
 
 ### 남은 과제
-1. 주·월 뷰 집계를 검증하는 ViewModel/도메인 단위 테스트를 추가해 데이터 회귀를 조기에 감지합니다.
-2. 실제 단말에서 알림 권한/스케줄링 플로우를 검증하는 E2E 테스트 시나리오를 작성합니다.
-3. 클라우드 동기화(예: 서버에서 내려오는 일정)와의 충돌 해결 전략을 설계하고 문서화합니다.
+1. 실제 단말에서 알림 권한/스케줄링 플로우를 검증하는 E2E 테스트 시나리오를 작성합니다.
 
 ## 우선순위 로드맵
 | 우선순위 | 작업 | 상태 | 메모 |
@@ -66,7 +64,7 @@
 | P0 | 새 항목 빠른 추가 | ✅ | FAB 시트로 Task/Event 빠른 등록 지원 |
 | P1 | 알림 연동 준비 | ✅ | AndroidReminderScheduler ↔ AlarmManager·WorkManager, 권한 안내 연결 |
 | P1 | 테스트·프리뷰 추가 | ✅ | Agenda Compose Preview + UI 스모크 테스트 확보 |
-| P2 | 도메인/뷰모델 회귀 테스트 확대 | 🚧 | 주·월 집계 검증용 단위 테스트가 필요 |
+| P2 | 도메인/뷰모델 회귀 테스트 확대 | 🚧 | 주·월 집계 단위 테스트 확보, 실제 단말 E2E 보강 예정 |
 
 ## 문서 모음
 - `docs/requirements.md` – 제품 요구사항과 페르소나.
@@ -74,6 +72,7 @@
 - `docs/ux-flows.md` – Compose 내비게이션과 사용자 플로우.
 - `docs/status-overview.md`, `docs/progress-audit.md` – 과거 진행 상황 기록.
 - `docs/next-steps.md` – 세부 체크리스트 및 향후 계획.
+- `docs/sync-conflict-strategy.md` – 서버/외부 캘린더 동기화 충돌 해결 정책과 테스트 전략.
 
 ## 권한
 Android 13 이상에서 `POST_NOTIFICATIONS` 런타임 권한을 요청하며, 정확한 알림을 위해 `SCHEDULE_EXACT_ALARM` 권한을 선언합니다. (Requires `POST_NOTIFICATIONS` runtime permission on Android 13+ and declares `SCHEDULE_EXACT_ALARM`.)

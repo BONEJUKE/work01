@@ -59,18 +59,29 @@ class AgendaAggregatorTest {
 
     @Test
     fun `aggregates tasks and events for a week`() = runBlocking {
-        val start = LocalDate.of(2024, 3, 4)
-        val tasks = listOf(
-            Task(
-                title = "Plan sprint",
-                period = AgendaPeriod.Week(start)
-            )
+        val start = LocalDate.of(2000, 1, 3)
+        val overdue = Task(
+            title = "File paperwork",
+            dueAt = LocalDateTime.of(2000, 1, 4, 9, 0),
+            period = AgendaPeriod.Week(start)
         )
+        val completed = Task(
+            title = "Plan sprint",
+            status = TaskStatus.Completed,
+            dueAt = LocalDateTime.of(2000, 1, 6, 10, 0),
+            period = AgendaPeriod.Week(start)
+        )
+        val upcoming = Task(
+            title = "Prep demo",
+            dueAt = LocalDateTime.of(2100, 1, 5, 11, 0),
+            period = AgendaPeriod.Week(start)
+        )
+        val tasks = listOf(overdue, completed, upcoming)
         val events = listOf(
             CalendarEvent(
                 title = "Demo",
-                start = LocalDateTime.of(2024, 3, 7, 14, 0),
-                end = LocalDateTime.of(2024, 3, 7, 15, 0)
+                start = LocalDateTime.of(2000, 1, 7, 14, 0),
+                end = LocalDateTime.of(2000, 1, 7, 15, 0)
             )
         )
         val aggregator = AgendaAggregator(
@@ -84,25 +95,33 @@ class AgendaAggregatorTest {
         assertEquals(start.plusDays(6), snapshot.rangeEnd)
         assertEquals(tasks, snapshot.tasks)
         assertEquals(events, snapshot.events)
+        assertEquals(1, snapshot.completedCount)
+        assertEquals(2, snapshot.pendingCount)
+        assertEquals(listOf(overdue), snapshot.overdueTasks)
     }
 
     @Test
     fun `aggregates tasks and events for a month`() = runBlocking {
-        val year = 2024
+        val year = 2000
         val month = 6
         val firstDay = LocalDate.of(year, month, 1)
         val lastDay = firstDay.plusMonths(1).minusDays(1)
-        val tasks = listOf(
-            Task(
-                title = "Close books",
-                period = AgendaPeriod.Month(year, month)
-            )
+        val overdue = Task(
+            title = "Close books",
+            dueAt = LocalDateTime.of(2000, 6, 15, 9, 0),
+            period = AgendaPeriod.Month(year, month)
         )
+        val pending = Task(
+            title = "Publish roadmap",
+            dueAt = LocalDateTime.of(2100, 6, 1, 9, 0),
+            period = AgendaPeriod.Month(year, month)
+        )
+        val tasks = listOf(overdue, pending)
         val events = listOf(
             CalendarEvent(
                 title = "Quarterly planning",
-                start = LocalDateTime.of(2024, 6, 12, 9, 0),
-                end = LocalDateTime.of(2024, 6, 12, 10, 0)
+                start = LocalDateTime.of(2000, 6, 12, 9, 0),
+                end = LocalDateTime.of(2000, 6, 12, 10, 0)
             )
         )
         val aggregator = AgendaAggregator(
@@ -116,7 +135,9 @@ class AgendaAggregatorTest {
         assertEquals(lastDay, snapshot.rangeEnd)
         assertEquals(tasks, snapshot.tasks)
         assertEquals(events, snapshot.events)
-        assertTrue(snapshot.overdueTasks.isEmpty())
+        assertEquals(0, snapshot.completedCount)
+        assertEquals(2, snapshot.pendingCount)
+        assertEquals(listOf(overdue), snapshot.overdueTasks)
     }
 
     private class FakeTaskRepository(

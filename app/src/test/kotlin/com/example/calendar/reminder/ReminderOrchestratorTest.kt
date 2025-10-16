@@ -180,6 +180,77 @@ class ReminderOrchestratorTest {
         assertTrue(store.read("event-demo").isEmpty())
     }
 
+    @Test
+    fun `ensure scheduled for task refreshes stale persisted reminders`() {
+        val scheduler = FakeReminderScheduler()
+        val store = FakeReminderStore()
+        val orchestrator = ReminderOrchestrator(scheduler, store, ZoneId.of("UTC"))
+        val task = Task(
+            title = "Sync reminders",
+            dueAt = LocalDateTime.of(2099, 2, 1, 9, 0),
+            period = AgendaPeriod.Day(LocalDate.of(2099, 2, 1)),
+            reminders = listOf(Reminder(minutesBefore = 10), Reminder(minutesBefore = 30))
+        )
+        val baseId = "task-${task.id}"
+        store.write(
+            baseId,
+            listOf(
+                StoredReminder(
+                    id = "$baseId-stale",
+                    triggerAt = LocalDateTime.of(2099, 1, 1, 9, 0),
+                    reminder = Reminder(minutesBefore = 5),
+                    payload = ReminderPayload(
+                        title = "Old",
+                        message = "old",
+                        deepLink = "app://task/${task.id}",
+                        allowSnooze = true
+                    )
+                )
+            )
+        )
+
+        val result = orchestrator.ensureScheduledForTask(task)
+
+        assertTrue(result)
+        assertEquals(listOf("$baseId-stale"), scheduler.cancelled)
+        assertEquals(2, scheduler.scheduled.size)
+        assertEquals(listOf("$baseId-0", "$baseId-1"), scheduler.scheduled.map { it.id })
+        assertEquals(2, store.read(baseId).size)
+    }
+
+    @Test
+    fun `ensure scheduled for event removes reminders when configuration is empty`() {
+        val scheduler = FakeReminderScheduler()
+        val store = FakeReminderStore()
+        val orchestrator = ReminderOrchestrator(scheduler, store, ZoneId.of("UTC"))
+        val event = CalendarEvent(
+            title = "Cloud sync",
+            start = LocalDateTime.of(2099, 3, 10, 15, 0),
+            end = LocalDateTime.of(2099, 3, 10, 16, 0),
+            reminders = listOf(Reminder(minutesBefore = 15))
+        )
+
+        orchestrator.scheduleForEvent(event)
+        assertEquals(1, store.read("event-${event.id}").size)
+
+        val result = orchestrator.ensureScheduledForEvent(event.copy(reminders = emptyList()))
+
+        assertFalse(result)
+        assertTrue(store.read("event-${event.id}").isEmpty())
+        assertEquals(listOf("event-${event.id}-0"), scheduler.cancelled)
+    }
+
+    @Test
+    fun `cancel by base id requests cancellation when no persisted reminders exist`() {
+        val scheduler = FakeReminderScheduler()
+        val store = FakeReminderStore()
+        val orchestrator = ReminderOrchestrator(scheduler, store, ZoneId.of("UTC"))
+
+        orchestrator.cancelByBaseId("task-missing")
+
+        assertEquals(listOf("task-missing"), scheduler.cancelled)
+    }
+
     private class FakeReminderScheduler : ReminderScheduler {
         val scheduled = mutableListOf<ScheduledReminder>()
         val cancelled = mutableListOf<String>()
