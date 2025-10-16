@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
+import java.util.UUID
 
 /**
  * Produces a combined agenda of events and tasks for a selected period.
@@ -61,4 +62,29 @@ data class AgendaSnapshot(
     val overdueTasks: List<Task> = tasks.filter { it.isOverdue() }
     val completedCount: Int = tasks.count { it.status.isDone() }
     val pendingCount: Int = tasks.size - completedCount
+    val conflictingEventIds: Set<UUID> = events.resolveConflictingEventIds()
+}
+
+private fun List<CalendarEvent>.resolveConflictingEventIds(): Set<UUID> {
+    if (size <= 1) return emptySet()
+
+    val sortedByStart = sortedBy { it.start }
+    val conflicts = mutableSetOf<UUID>()
+
+    for (index in sortedByStart.indices) {
+        val current = sortedByStart[index]
+        for (otherIndex in index + 1 until sortedByStart.size) {
+            val other = sortedByStart[otherIndex]
+            if (!current.end.isAfter(other.start)) {
+                break
+            }
+
+            if (current.start.isBefore(other.end) && other.start.isBefore(current.end)) {
+                conflicts += current.id
+                conflicts += other.id
+            }
+        }
+    }
+
+    return conflicts
 }

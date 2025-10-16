@@ -21,9 +21,11 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -819,7 +821,12 @@ private fun AgendaList(
             }
         } else {
             items(snapshot.events) { event ->
-                EventCard(event = event, onClick = { onEventClick(event) })
+                val hasConflict = snapshot.conflictingEventIds.contains(event.id)
+                EventCard(
+                    event = event,
+                    hasConflict = hasConflict,
+                    onClick = { onEventClick(event) }
+                )
             }
         }
         item {
@@ -868,11 +875,24 @@ private fun AgendaSummaryCard(
         }
     }
 
+    val conflictCount = snapshot.conflictingEventIds.size
+    val summaryWithConflicts = if (conflictCount > 0) {
+        buildString {
+            append(summaryDescription)
+            append(' ')
+            append("시간이 겹치는 일정 ")
+            append(conflictCount)
+            append("건이 있어요.")
+        }
+    } else {
+        summaryDescription
+    }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
             .semantics(mergeDescendants = true) {
-                contentDescription = summaryDescription
+                contentDescription = summaryWithConflicts
             }
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -899,6 +919,13 @@ private fun AgendaSummaryCard(
                     color = MaterialTheme.colorScheme.error
                 )
             }
+            if (conflictCount > 0) {
+                Text(
+                    text = "시간 충돌 ${conflictCount}건",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
         }
     }
 }
@@ -914,14 +941,50 @@ private fun SectionTitle(text: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun EventCard(event: CalendarEvent, onClick: () -> Unit) {
+private fun EventCard(event: CalendarEvent, hasConflict: Boolean, onClick: () -> Unit) {
+    val colors = if (hasConflict) {
+        CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer
+        )
+    } else {
+        CardDefaults.cardColors()
+    }
+
+    val description = buildString {
+        append(event.title)
+        append(" event")
+        if (hasConflict) {
+            append(", conflicting with another event")
+        }
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .semantics { contentDescription = "${event.title} event" },
+            .semantics { contentDescription = description },
+        colors = colors,
         onClick = onClick
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            if (hasConflict) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = null
+                    )
+                    Text(
+                        text = "다른 일정과 시간이 겹쳐요",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
