@@ -10,6 +10,8 @@ import com.example.calendar.data.TaskStatus
 import com.example.calendar.reminder.ReminderOrchestrator
 import com.example.calendar.reminder.ReminderPayload
 import com.example.calendar.reminder.ReminderScheduler
+import com.example.calendar.reminder.ReminderStore
+import com.example.calendar.reminder.StoredReminder
 import com.example.calendar.scheduler.AgendaAggregator
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -39,6 +41,7 @@ class AgendaViewModelTest {
     private lateinit var task: Task
     private lateinit var event: CalendarEvent
     private lateinit var scheduler: RecordingReminderScheduler
+    private lateinit var store: InMemoryReminderStore
     private lateinit var viewModel: AgendaViewModel
 
     @Before
@@ -66,7 +69,8 @@ class AgendaViewModelTest {
         val eventRepository = InMemoryEventRepository(listOf(event))
         val aggregator = AgendaAggregator(taskRepository, eventRepository)
         scheduler = RecordingReminderScheduler()
-        val orchestrator = ReminderOrchestrator(scheduler)
+        store = InMemoryReminderStore()
+        val orchestrator = ReminderOrchestrator(scheduler, store)
 
         viewModel = AgendaViewModel(
             aggregator = aggregator,
@@ -149,6 +153,28 @@ class AgendaViewModelTest {
 
         override fun cancelReminder(id: String) {
             canceled += id
+        }
+    }
+
+    private class InMemoryReminderStore : ReminderStore {
+        private val backing = linkedMapOf<String, MutableList<StoredReminder>>()
+
+        override fun write(baseId: String, reminders: List<StoredReminder>) {
+            if (reminders.isEmpty()) {
+                remove(baseId)
+            } else {
+                backing[baseId] = reminders.toMutableList()
+            }
+        }
+
+        override fun read(baseId: String): List<StoredReminder> =
+            backing[baseId]?.toList() ?: emptyList()
+
+        override fun readAll(): Map<String, List<StoredReminder>> =
+            backing.mapValues { it.value.toList() }
+
+        override fun remove(baseId: String) {
+            backing.remove(baseId)
         }
     }
 }
