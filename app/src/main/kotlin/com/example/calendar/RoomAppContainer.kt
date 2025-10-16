@@ -11,6 +11,7 @@ import com.example.calendar.data.RoomTaskRepository
 import com.example.calendar.data.TaskRepository
 import com.example.calendar.reminder.AndroidReminderScheduler
 import com.example.calendar.reminder.ReminderOrchestrator
+import com.example.calendar.reminder.REMINDER_STORE_NAME
 import com.example.calendar.reminder.ReminderStore
 import com.example.calendar.reminder.ReminderStoreSynchronizer
 import com.example.calendar.reminder.SharedPreferencesReminderStore
@@ -41,7 +42,7 @@ class RoomAppContainer(
 
     private val reminderStore: ReminderStore by lazy {
         SharedPreferencesReminderStore(
-            context.getSharedPreferences("calendar_reminders", Context.MODE_PRIVATE)
+            context.getSharedPreferences(REMINDER_STORE_NAME, Context.MODE_PRIVATE)
         )
     }
 
