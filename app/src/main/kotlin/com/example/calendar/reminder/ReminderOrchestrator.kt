@@ -18,32 +18,39 @@ class ReminderOrchestrator(
     }
 
     fun scheduleForTask(task: Task) {
-        val dueAt = task.dueAt ?: return
-        scheduleReminders(
-            baseId = "task-${task.id}",
+        val baseId = "task-${task.id}"
+        val dueAt = task.dueAt ?: run {
+            cancelByBaseId(baseId)
+            return
+        }
+        val schedule = buildSchedule(
+            baseId = baseId,
             title = task.title,
             targetDateTime = dueAt,
             reminders = task.reminders,
             deepLink = "app://task/${task.id}",
             allowSnooze = true
         )
+        replaceSchedule(baseId, schedule)
     }
 
     fun scheduleForEvent(event: CalendarEvent) {
-        scheduleReminders(
-            baseId = "event-${event.id}",
+        val baseId = "event-${event.id}"
+        val schedule = buildSchedule(
+            baseId = baseId,
             title = event.title,
             targetDateTime = event.start,
             reminders = event.reminders,
             deepLink = "app://event/${event.id}",
             allowSnooze = false
         )
+        replaceSchedule(baseId, schedule)
     }
 
     fun cancelForTask(task: Task) = cancelByBaseId("task-${task.id}")
     fun cancelForEvent(event: CalendarEvent) = cancelByBaseId("event-${event.id}")
 
-    private fun cancelByBaseId(baseId: String) {
+    internal fun cancelByBaseId(baseId: String) {
         val stored = store.read(baseId)
         if (stored.isEmpty()) {
             scheduler.cancelReminder(baseId)
@@ -53,21 +60,96 @@ class ReminderOrchestrator(
         store.remove(baseId)
     }
 
-    private fun scheduleReminders(
+    internal fun ensureScheduledForTask(task: Task): Boolean {
+        val baseId = "task-${task.id}"
+        val dueAt = task.dueAt ?: run {
+            cancelByBaseId(baseId)
+            return false
+        }
+        if (task.reminders.isEmpty()) {
+            cancelByBaseId(baseId)
+            return false
+        }
+
+        val schedule = buildSchedule(
+            baseId = baseId,
+            title = task.title,
+            targetDateTime = dueAt,
+            reminders = task.reminders,
+            deepLink = "app://task/${task.id}",
+            allowSnooze = true
+        )
+
+        if (schedule.isEmpty()) {
+            cancelByBaseId(baseId)
+            return false
+        }
+
+        if (!store.read(baseId).contentEquals(schedule)) {
+            replaceSchedule(baseId, schedule)
+        }
+
+        return true
+    }
+
+    internal fun ensureScheduledForEvent(event: CalendarEvent): Boolean {
+        val baseId = "event-${event.id}"
+        if (event.reminders.isEmpty()) {
+            cancelByBaseId(baseId)
+            return false
+        }
+
+        val schedule = buildSchedule(
+            baseId = baseId,
+            title = event.title,
+            targetDateTime = event.start,
+            reminders = event.reminders,
+            deepLink = "app://event/${event.id}",
+            allowSnooze = false
+        )
+
+        if (schedule.isEmpty()) {
+            cancelByBaseId(baseId)
+            return false
+        }
+
+        if (!store.read(baseId).contentEquals(schedule)) {
+            replaceSchedule(baseId, schedule)
+        }
+
+        return true
+    }
+
+    private fun replaceSchedule(baseId: String, schedule: List<StoredReminder>) {
+        cancelByBaseId(baseId)
+        if (schedule.isEmpty()) {
+            return
+        }
+        schedule.forEach { record ->
+            scheduler.scheduleReminder(
+                id = record.id,
+                triggerAt = record.triggerAt,
+                reminder = record.reminder,
+                payload = record.payload
+            )
+        }
+        store.write(baseId, schedule)
+    }
+
+    private fun buildSchedule(
         baseId: String,
         title: String,
         targetDateTime: LocalDateTime,
         reminders: List<Reminder>,
         deepLink: String,
         allowSnooze: Boolean
-    ) {
-        cancelByBaseId(baseId)
-
-        val scheduled = buildList {
+    ): List<StoredReminder> {
+        val now = ZonedDateTime.now(zoneId)
+        return buildList {
             reminders.forEachIndexed { index, reminder ->
                 val trigger = targetDateTime.minusMinutes(reminder.minutesBefore)
-                val zonedTrigger: ZonedDateTime = trigger.atZone(zoneId)
-                if (zonedTrigger.isAfter(ZonedDateTime.now(zoneId))) {
+                val zonedTrigger = trigger.atZone(zoneId)
+                if (zonedTrigger.isAfter(now)) {
                     val id = "$baseId-$index"
                     val payload = ReminderPayload(
                         title = title,
@@ -75,29 +157,16 @@ class ReminderOrchestrator(
                         deepLink = deepLink,
                         allowSnooze = allowSnooze && reminder.allowSnooze
                     )
-                    val triggerAt = zonedTrigger.toLocalDateTime()
-                    scheduler.scheduleReminder(
-                        id = id,
-                        triggerAt = triggerAt,
-                        reminder = reminder,
-                        payload = payload
-                    )
                     add(
                         StoredReminder(
                             id = id,
-                            triggerAt = triggerAt,
+                            triggerAt = zonedTrigger.toLocalDateTime(),
                             reminder = reminder,
                             payload = payload
                         )
                     )
                 }
             }
-        }
-
-        if (scheduled.isEmpty()) {
-            store.remove(baseId)
-        } else {
-            store.write(baseId, scheduled)
         }
     }
 
@@ -119,5 +188,15 @@ class ReminderOrchestrator(
                 store.write(baseId, active)
             }
         }
+    }
+}
+
+private fun List<StoredReminder>.contentEquals(other: List<StoredReminder>): Boolean {
+    if (size != other.size) return false
+    return sortedBy { it.id }.zip(other.sortedBy { it.id }).all { (first, second) ->
+        first.id == second.id &&
+            first.triggerAt == second.triggerAt &&
+            first.reminder == second.reminder &&
+            first.payload == second.payload
     }
 }

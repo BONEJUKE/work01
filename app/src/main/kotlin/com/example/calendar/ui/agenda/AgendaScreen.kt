@@ -61,6 +61,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -1318,20 +1319,26 @@ private fun QuickAddSheet(
                     onValueChange = { taskTitle = it },
                     label = { Text("제목") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("quickAddTaskTitle")
                 )
                 OutlinedTextField(
                     value = taskNotes,
                     onValueChange = { taskNotes = it },
                     label = { Text("메모 (선택)") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("quickAddTaskNotes")
                 )
                 OutlinedTextField(
                     value = taskTime,
                     onValueChange = { taskTime = it },
                     label = { Text("마감 시간 (HH:mm)") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("quickAddTaskDueTime"),
                     supportingText = {
                         Text(
                             text = "비워 두면 시간 없이 저장됩니다.",
@@ -1346,33 +1353,43 @@ private fun QuickAddSheet(
                     onValueChange = { eventTitle = it },
                     label = { Text("제목") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("quickAddEventTitle")
                 )
                 OutlinedTextField(
                     value = eventLocation,
                     onValueChange = { eventLocation = it },
                     label = { Text("위치 (선택)") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("quickAddEventLocation")
                 )
                 OutlinedTextField(
                     value = eventStartTime,
                     onValueChange = { eventStartTime = it },
                     label = { Text("시작 시간 (HH:mm)") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("quickAddEventStart")
                 )
                 OutlinedTextField(
                     value = eventEndTime,
                     onValueChange = { eventEndTime = it },
                     label = { Text("종료 시간 (HH:mm)") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("quickAddEventEnd")
                 )
                 OutlinedTextField(
                     value = eventNotes,
                     onValueChange = { eventNotes = it },
                     label = { Text("메모 (선택)") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("quickAddEventNotes")
                 )
             }
         }

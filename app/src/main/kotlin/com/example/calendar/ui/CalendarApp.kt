@@ -10,6 +10,7 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.VisibleForTesting
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -83,8 +84,9 @@ fun CalendarApp(
     }
 }
 
+@VisibleForTesting
 @Composable
-private fun NotificationPermissionCard(
+internal fun NotificationPermissionCard(
     controller: NotificationPermissionController,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
@@ -195,7 +197,8 @@ private fun rememberNotificationPermissionController(): NotificationPermissionCo
     )
 }
 
-private data class NotificationPermissionController(
+@VisibleForTesting
+internal data class NotificationPermissionController(
     val isSupported: Boolean,
     val isGranted: Boolean,
     val canRequest: Boolean,
