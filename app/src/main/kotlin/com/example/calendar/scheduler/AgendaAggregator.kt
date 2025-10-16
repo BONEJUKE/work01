@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.util.UUID
 
 /**
@@ -102,59 +101,4 @@ private fun List<CalendarEvent>.resolveConflictingEventIds(): Set<UUID> {
     }
 
     return conflicts
-}
-
-private fun List<CalendarEvent>.expandRecurringInstances(
-    rangeStart: LocalDate,
-    rangeEnd: LocalDate
-): List<CalendarEvent> {
-    if (isEmpty()) return emptyList()
-
-    val expanded = flatMap { event ->
-        val recurrence = event.recurrence ?: return@flatMap listOf(event)
-        event.expandOccurrences(recurrence, rangeStart, rangeEnd)
-    }
-
-    return expanded.sortedBy { it.start }
-}
-
-private fun CalendarEvent.expandOccurrences(
-    recurrence: Recurrence,
-    rangeStart: LocalDate,
-    rangeEnd: LocalDate
-): List<CalendarEvent> {
-    val startWindow = rangeStart.atStartOfDay()
-    val endWindowExclusive = rangeEnd.plusDays(1).atStartOfDay()
-    val maxOccurrences = recurrence.occurrences ?: Int.MAX_VALUE
-    val occurrences = mutableListOf<CalendarEvent>()
-
-    var produced = 0
-    var currentStart: LocalDateTime = start
-    var currentEnd: LocalDateTime = end
-
-    while (produced < maxOccurrences && currentStart.isBefore(endWindowExclusive)) {
-        if (!currentEnd.isBefore(startWindow) && currentStart.isBefore(endWindowExclusive)) {
-            occurrences += copy(start = currentStart, end = currentEnd)
-        }
-
-        produced++
-        if (produced >= maxOccurrences) {
-            break
-        }
-
-        currentStart = currentStart.advanceBy(recurrence)
-        currentEnd = currentEnd.advanceBy(recurrence)
-    }
-
-    return occurrences
-}
-
-private fun LocalDateTime.advanceBy(recurrence: Recurrence): LocalDateTime {
-    val interval = recurrence.interval.coerceAtLeast(1)
-    return when (recurrence.rule) {
-        RecurrenceRule.Daily -> plusDays(interval.toLong())
-        RecurrenceRule.Weekly -> plusWeeks(interval.toLong())
-        RecurrenceRule.Monthly -> plusMonths(interval.toLong())
-        RecurrenceRule.Yearly -> plusYears(interval.toLong())
-    }
 }

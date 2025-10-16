@@ -880,7 +880,7 @@ private fun AgendaList(
                 EmptySectionMessage(message = "표시할 일정이 없어요. 필터를 확인해 보세요.")
             }
         } else {
-            items(visibleEvents, key = { "${it.id}-${it.start}" }) { event ->
+            items(snapshot.events) { event ->
                 val hasConflict = snapshot.conflictingEventIds.contains(event.id)
                 EventCard(
                     event = event,

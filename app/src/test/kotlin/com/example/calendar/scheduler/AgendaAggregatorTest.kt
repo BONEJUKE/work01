@@ -174,55 +174,6 @@ class AgendaAggregatorTest {
         assertTrue(separate.id !in snapshot.conflictingEventIds)
     }
 
-    @Test
-    fun `expands recurring events within requested range`() = runBlocking {
-        val start = LocalDate.of(2024, 6, 3)
-        val end = start.plusDays(6)
-        val recurring = CalendarEvent(
-            title = "Daily stand-up",
-            start = LocalDateTime.of(start, LocalTime.of(9, 30)),
-            end = LocalDateTime.of(start, LocalTime.of(9, 45)),
-            recurrence = Recurrence(rule = RecurrenceRule.Daily, interval = 1, occurrences = 5)
-        )
-        val aggregator = AgendaAggregator(
-            taskRepository = FakeTaskRepository(weekTasks = mapOf(start to emptyList())),
-            eventRepository = FakeEventRepository(
-                rangeEvents = mapOf((start to end) to listOf(recurring))
-            )
-        )
-
-        val snapshot = aggregator.observeAgenda(AgendaPeriod.Week(start)).first()
-
-        val occurrences = snapshot.events
-        assertEquals(5, occurrences.size)
-        val expectedDates = (0 until 5).map { start.plusDays(it.toLong()) }
-        assertEquals(expectedDates, occurrences.map { it.start.toLocalDate() })
-    }
-
-    @Test
-    fun `stops expanding recurring events beyond configured occurrences`() = runBlocking {
-        val periodStart = LocalDate.of(2024, 7, 1)
-        val periodEnd = periodStart.plusMonths(1).minusDays(1)
-        val recurring = CalendarEvent(
-            title = "Monthly check-in",
-            start = LocalDateTime.of(periodStart.minusMonths(1), LocalTime.of(8, 0)),
-            end = LocalDateTime.of(periodStart.minusMonths(1), LocalTime.of(9, 0)),
-            recurrence = Recurrence(rule = RecurrenceRule.Monthly, interval = 1, occurrences = 2)
-        )
-        val aggregator = AgendaAggregator(
-            taskRepository = FakeTaskRepository(monthTasks = mapOf((periodStart.year to periodStart.monthValue) to emptyList())),
-            eventRepository = FakeEventRepository(
-                rangeEvents = mapOf((periodStart to periodEnd) to listOf(recurring))
-            )
-        )
-
-        val snapshot = aggregator.observeAgenda(AgendaPeriod.Month(periodStart.year, periodStart.monthValue)).first()
-
-        // Only the second occurrence should appear in the selected month.
-        assertEquals(1, snapshot.events.size)
-        assertEquals(periodStart, snapshot.events.single().start.toLocalDate())
-    }
-
     private class FakeTaskRepository(
         private val dayTasks: Map<LocalDate, List<Task>> = emptyMap(),
         private val weekTasks: Map<LocalDate, List<Task>> = emptyMap(),
