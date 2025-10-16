@@ -21,9 +21,11 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -77,9 +79,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.calendar.data.AgendaPeriod
 import com.example.calendar.data.CalendarEvent
+import com.example.calendar.data.Recurrence
+import com.example.calendar.data.RecurrenceRule
 import com.example.calendar.data.Task
 import com.example.calendar.data.TaskStatus
 import com.example.calendar.scheduler.AgendaSnapshot
+import com.example.calendar.ui.AgendaFilters
 import com.example.calendar.ui.AgendaUiState
 import com.example.calendar.ui.AgendaUserMessage
 import com.example.calendar.ui.AgendaViewModel
@@ -186,7 +191,9 @@ fun AgendaRoute(
                     }
                 }
                 is AgendaSheetContent.EventDetail -> {
-                    val updated = snapshot.events.find { it.id == currentContent.event.id }
+                    val updated = snapshot.events.find {
+                        it.id == currentContent.event.id && it.start == currentContent.event.start
+                    } ?: snapshot.events.find { it.id == currentContent.event.id }
                     if (updated != null && updated != currentContent.event) {
                         sheetContent = AgendaSheetContent.EventDetail(updated)
                     } else if (updated == null) {
@@ -232,6 +239,8 @@ fun AgendaRoute(
         onToggleTask = viewModel::toggleTask,
         onTaskClick = openTaskSheet,
         onEventClick = openEventSheet,
+        onToggleShowCompletedTasks = viewModel::toggleShowCompletedTasks,
+        onToggleShowRecurringEvents = viewModel::toggleShowRecurringEvents,
         onWeekDaySelected = { date ->
             updateFocus(date)
             navigationState.navigateTo(AgendaTab.Daily)
@@ -355,6 +364,8 @@ fun AgendaScreen(
     onToggleTask: (Task) -> Unit,
     onTaskClick: (Task) -> Unit,
     onEventClick: (CalendarEvent) -> Unit,
+    onToggleShowCompletedTasks: () -> Unit,
+    onToggleShowRecurringEvents: () -> Unit,
     onWeekDaySelected: (LocalDate) -> Unit,
     onMonthDaySelected: (LocalDate) -> Unit,
     focusedDay: LocalDate,
@@ -414,9 +425,13 @@ fun AgendaScreen(
                     uiState.error != null -> AgendaError(uiState.error)
                     uiState.snapshot != null -> AgendaSnapshotContent(
                         snapshot = uiState.snapshot,
+                        filters = uiState.filters,
                         onToggleTask = onToggleTask,
                         onTaskClick = onTaskClick,
                         onEventClick = onEventClick,
+                        onToggleShowCompletedTasks = onToggleShowCompletedTasks,
+                        onToggleShowRecurringEvents = onToggleShowRecurringEvents,
+                        selectedTab = selectedTab,
                         modifier = Modifier.fillMaxSize()
                     )
                     else -> AgendaEmptyState(onQuickAddClick = onQuickAddClick)
@@ -690,34 +705,46 @@ private fun PeriodControls(
 @Composable
 private fun AgendaSnapshotContent(
     snapshot: AgendaSnapshot,
+    filters: AgendaFilters,
     selectedTab: AgendaTab,
     onToggleTask: (Task) -> Unit,
     onTaskClick: (Task) -> Unit,
     onEventClick: (CalendarEvent) -> Unit,
+    onToggleShowCompletedTasks: () -> Unit,
+    onToggleShowRecurringEvents: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     when (selectedTab) {
         AgendaTab.Daily -> DayAgenda(
             snapshot = snapshot,
+            filters = filters,
             onToggleTask = onToggleTask,
             onTaskClick = onTaskClick,
             onEventClick = onEventClick,
+            onToggleShowCompletedTasks = onToggleShowCompletedTasks,
+            onToggleShowRecurringEvents = onToggleShowRecurringEvents,
             modifier = modifier
         )
 
         AgendaTab.Weekly -> WeekAgenda(
             snapshot = snapshot,
+            filters = filters,
             onToggleTask = onToggleTask,
             onTaskClick = onTaskClick,
             onEventClick = onEventClick,
+            onToggleShowCompletedTasks = onToggleShowCompletedTasks,
+            onToggleShowRecurringEvents = onToggleShowRecurringEvents,
             modifier = modifier
         )
 
         AgendaTab.Monthly -> MonthAgenda(
             snapshot = snapshot,
+            filters = filters,
             onToggleTask = onToggleTask,
             onTaskClick = onTaskClick,
             onEventClick = onEventClick,
+            onToggleShowCompletedTasks = onToggleShowCompletedTasks,
+            onToggleShowRecurringEvents = onToggleShowRecurringEvents,
             modifier = modifier
         )
     }
@@ -726,18 +753,24 @@ private fun AgendaSnapshotContent(
 @Composable
 private fun DayAgenda(
     snapshot: AgendaSnapshot,
+    filters: AgendaFilters,
     onToggleTask: (Task) -> Unit,
     onTaskClick: (Task) -> Unit,
     onEventClick: (CalendarEvent) -> Unit,
+    onToggleShowCompletedTasks: () -> Unit,
+    onToggleShowRecurringEvents: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     AgendaList(
         snapshot = snapshot,
         summaryTitle = "Daily overview",
         summaryPeriod = DayFormatter.format(snapshot.rangeStart),
+        filters = filters,
         onToggleTask = onToggleTask,
         onTaskClick = onTaskClick,
         onEventClick = onEventClick,
+        onToggleShowCompletedTasks = onToggleShowCompletedTasks,
+        onToggleShowRecurringEvents = onToggleShowRecurringEvents,
         modifier = modifier
     )
 }
@@ -745,9 +778,12 @@ private fun DayAgenda(
 @Composable
 private fun WeekAgenda(
     snapshot: AgendaSnapshot,
+    filters: AgendaFilters,
     onToggleTask: (Task) -> Unit,
     onTaskClick: (Task) -> Unit,
     onEventClick: (CalendarEvent) -> Unit,
+    onToggleShowCompletedTasks: () -> Unit,
+    onToggleShowRecurringEvents: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val periodLabel = buildString {
@@ -761,9 +797,12 @@ private fun WeekAgenda(
         snapshot = snapshot,
         summaryTitle = "Weekly focus",
         summaryPeriod = periodLabel,
+        filters = filters,
         onToggleTask = onToggleTask,
         onTaskClick = onTaskClick,
         onEventClick = onEventClick,
+        onToggleShowCompletedTasks = onToggleShowCompletedTasks,
+        onToggleShowRecurringEvents = onToggleShowRecurringEvents,
         modifier = modifier
     )
 }
@@ -771,9 +810,12 @@ private fun WeekAgenda(
 @Composable
 private fun MonthAgenda(
     snapshot: AgendaSnapshot,
+    filters: AgendaFilters,
     onToggleTask: (Task) -> Unit,
     onTaskClick: (Task) -> Unit,
     onEventClick: (CalendarEvent) -> Unit,
+    onToggleShowCompletedTasks: () -> Unit,
+    onToggleShowRecurringEvents: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val monthLabel = MonthFormatter.format(snapshot.rangeStart)
@@ -781,9 +823,12 @@ private fun MonthAgenda(
         snapshot = snapshot,
         summaryTitle = "Monthly outlook",
         summaryPeriod = monthLabel,
+        filters = filters,
         onToggleTask = onToggleTask,
         onTaskClick = onTaskClick,
         onEventClick = onEventClick,
+        onToggleShowCompletedTasks = onToggleShowCompletedTasks,
+        onToggleShowRecurringEvents = onToggleShowRecurringEvents,
         modifier = modifier
     )
 }
@@ -793,11 +838,21 @@ private fun AgendaList(
     snapshot: AgendaSnapshot,
     summaryTitle: String,
     summaryPeriod: String,
+    filters: AgendaFilters,
     onToggleTask: (Task) -> Unit,
     onTaskClick: (Task) -> Unit,
     onEventClick: (CalendarEvent) -> Unit,
+    onToggleShowCompletedTasks: () -> Unit,
+    onToggleShowRecurringEvents: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val visibleEvents = remember(snapshot.events, filters.showRecurringEvents) {
+        if (filters.showRecurringEvents) snapshot.events else snapshot.events.filter { it.recurrence == null }
+    }
+    val visibleTasks = remember(snapshot.tasks, filters.showCompletedTasks) {
+        if (filters.showCompletedTasks) snapshot.tasks else snapshot.tasks.filterNot { it.status.isDone() }
+    }
+
     LazyColumn(
         modifier = modifier,
         contentPadding = PaddingValues(16.dp),
@@ -813,24 +868,36 @@ private fun AgendaList(
         item {
             SectionTitle(text = "Events")
         }
-        if (snapshot.events.isEmpty()) {
+        item {
+            AgendaFilterRow(
+                filters = filters,
+                onToggleShowRecurringEvents = onToggleShowRecurringEvents,
+                onToggleShowCompletedTasks = onToggleShowCompletedTasks
+            )
+        }
+        if (visibleEvents.isEmpty()) {
             item {
-                EmptySectionMessage(message = "이 기간에는 등록된 일정이 없어요")
+                EmptySectionMessage(message = "표시할 일정이 없어요. 필터를 확인해 보세요.")
             }
         } else {
-            items(snapshot.events) { event ->
-                EventCard(event = event, onClick = { onEventClick(event) })
+            items(visibleEvents, key = { "${it.id}-${it.start}" }) { event ->
+                val hasConflict = snapshot.conflictingEventIds.contains(event.id)
+                EventCard(
+                    event = event,
+                    hasConflict = hasConflict,
+                    onClick = { onEventClick(event) }
+                )
             }
         }
         item {
             SectionTitle(text = "Tasks")
         }
-        if (snapshot.tasks.isEmpty()) {
+        if (visibleTasks.isEmpty()) {
             item {
-                EmptySectionMessage(message = "완료해야 할 할 일이 없어요")
+                EmptySectionMessage(message = "표시할 할 일이 없어요. 필터를 확인해 보세요.")
             }
         } else {
-            items(snapshot.tasks, key = { it.id }) { task ->
+            items(visibleTasks, key = { it.id }) { task ->
                 SwipeableTaskRow(
                     task = task,
                     onToggleTask = { onToggleTask(task) },
@@ -838,6 +905,30 @@ private fun AgendaList(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun AgendaFilterRow(
+    filters: AgendaFilters,
+    onToggleShowRecurringEvents: () -> Unit,
+    onToggleShowCompletedTasks: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        FilterChip(
+            selected = filters.showRecurringEvents,
+            onClick = onToggleShowRecurringEvents,
+            label = { Text("반복 일정 표시") }
+        )
+        FilterChip(
+            selected = filters.showCompletedTasks,
+            onClick = onToggleShowCompletedTasks,
+            label = { Text("완료된 할 일 표시") }
+        )
     }
 }
 
@@ -868,11 +959,24 @@ private fun AgendaSummaryCard(
         }
     }
 
+    val conflictCount = snapshot.conflictingEventIds.size
+    val summaryWithConflicts = if (conflictCount > 0) {
+        buildString {
+            append(summaryDescription)
+            append(' ')
+            append("시간이 겹치는 일정 ")
+            append(conflictCount)
+            append("건이 있어요.")
+        }
+    } else {
+        summaryDescription
+    }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
             .semantics(mergeDescendants = true) {
-                contentDescription = summaryDescription
+                contentDescription = summaryWithConflicts
             }
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -899,6 +1003,13 @@ private fun AgendaSummaryCard(
                     color = MaterialTheme.colorScheme.error
                 )
             }
+            if (conflictCount > 0) {
+                Text(
+                    text = "시간 충돌 ${conflictCount}건",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
         }
     }
 }
@@ -914,14 +1025,50 @@ private fun SectionTitle(text: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun EventCard(event: CalendarEvent, onClick: () -> Unit) {
+private fun EventCard(event: CalendarEvent, hasConflict: Boolean, onClick: () -> Unit) {
+    val colors = if (hasConflict) {
+        CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer
+        )
+    } else {
+        CardDefaults.cardColors()
+    }
+
+    val description = buildString {
+        append(event.title)
+        append(" event")
+        if (hasConflict) {
+            append(", conflicting with another event")
+        }
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .semantics { contentDescription = "${event.title} event" },
+            .semantics { contentDescription = description },
+        colors = colors,
         onClick = onClick
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            if (hasConflict) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = null
+                    )
+                    Text(
+                        text = "다른 일정과 시간이 겹쳐요",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -949,6 +1096,10 @@ private fun EventCard(event: CalendarEvent, onClick: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            event.recurrence?.let { recurrence ->
+                Spacer(modifier = Modifier.height(8.dp))
+                RecurrenceBadge(recurrence = recurrence)
+            }
             event.location?.let { location ->
                 Text(
                     text = location,
@@ -1603,6 +1754,37 @@ private fun eventTimeRange(event: CalendarEvent): String {
     }
 }
 
+@Composable
+private fun RecurrenceBadge(recurrence: Recurrence) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+    ) {
+        Text(
+            text = formatRecurrence(recurrence),
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+        )
+    }
+}
+
+private fun formatRecurrence(recurrence: Recurrence): String {
+    val interval = recurrence.interval.coerceAtLeast(1)
+    val (baseLabel, unitLabel) = when (recurrence.rule) {
+        RecurrenceRule.Daily -> "매일" to "일"
+        RecurrenceRule.Weekly -> "매주" to "주"
+        RecurrenceRule.Monthly -> "매월" to "달"
+        RecurrenceRule.Yearly -> "매년" to "년"
+    }
+
+    return if (interval == 1) {
+        baseLabel
+    } else {
+        "매 ${interval}${unitLabel}"
+    }
+}
+
 private fun AgendaUserMessage.toSnackbarMessage(): String = when (this) {
     is AgendaUserMessage.QuickAddSuccess -> when (type) {
         QuickAddType.Task -> "할 일을 추가했어요."
@@ -1648,6 +1830,8 @@ private fun AgendaScreenLoadedPreview() {
             onToggleTask = {},
             onTaskClick = {},
             onEventClick = {},
+            onToggleShowCompletedTasks = {},
+            onToggleShowRecurringEvents = {},
             onWeekDaySelected = {},
             onMonthDaySelected = {},
             focusedDay = PreviewAgendaDate,
@@ -1675,6 +1859,8 @@ private fun AgendaScreenEmptyPreview() {
             onToggleTask = {},
             onTaskClick = {},
             onEventClick = {},
+            onToggleShowCompletedTasks = {},
+            onToggleShowRecurringEvents = {},
             onWeekDaySelected = {},
             onMonthDaySelected = {},
             focusedDay = PreviewAgendaDate,
@@ -1731,13 +1917,21 @@ private val previewAgendaEvents: List<CalendarEvent> = listOf(
         description = "목표 공유",
         start = LocalDateTime.of(PreviewAgendaDate, LocalTime.of(9, 30)),
         end = LocalDateTime.of(PreviewAgendaDate, LocalTime.of(10, 0)),
-        location = "회의실 A"
+        location = "회의실 A",
+        recurrence = Recurrence(rule = RecurrenceRule.Daily, interval = 1)
     ),
     CalendarEvent(
         title = "디자인 리뷰",
         start = LocalDateTime.of(PreviewAgendaDate, LocalTime.of(13, 0)),
         end = LocalDateTime.of(PreviewAgendaDate, LocalTime.of(14, 0)),
         location = "온라인 미팅"
+    ),
+    CalendarEvent(
+        title = "회고 준비",
+        start = LocalDateTime.of(PreviewAgendaDate, LocalTime.of(16, 0)),
+        end = LocalDateTime.of(PreviewAgendaDate, LocalTime.of(16, 30)),
+        location = "회의실 B",
+        recurrence = Recurrence(rule = RecurrenceRule.Weekly, interval = 1)
     )
 )
 

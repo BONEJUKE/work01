@@ -3,12 +3,16 @@ package com.example.calendar.scheduler
 import com.example.calendar.data.AgendaPeriod
 import com.example.calendar.data.CalendarEvent
 import com.example.calendar.data.EventRepository
+import com.example.calendar.data.Recurrence
+import com.example.calendar.data.RecurrenceRule
 import com.example.calendar.data.Task
 import com.example.calendar.data.TaskRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.util.UUID
 
 /**
  * Produces a combined agenda of events and tasks for a selected period.
@@ -27,7 +31,11 @@ class AgendaAggregator(
         taskRepository.observeTasksForDay(date),
         eventRepository.observeEventsForDay(date)
     ) { tasks, events ->
-        AgendaSnapshot(date, tasks, events)
+        AgendaSnapshot(
+            rangeStart = date,
+            tasks = tasks,
+            events = events.expandRecurringInstances(date, date)
+        )
     }
 
     private fun observeWeek(start: LocalDate): Flow<AgendaSnapshot> {
@@ -36,7 +44,11 @@ class AgendaAggregator(
             taskRepository.observeTasksForWeek(start),
             eventRepository.observeEventsForRange(start, end)
         ) { tasks, events ->
-            AgendaSnapshot(start, tasks, events)
+            AgendaSnapshot(
+                rangeStart = start,
+                tasks = tasks,
+                events = events.expandRecurringInstances(start, end)
+            )
         }.map { snapshot -> snapshot.copy(rangeEnd = end) }
     }
 
@@ -47,7 +59,11 @@ class AgendaAggregator(
             taskRepository.observeTasksForMonth(year, month),
             eventRepository.observeEventsForRange(firstDay, lastDay)
         ) { tasks, events ->
-            AgendaSnapshot(firstDay, tasks, events)
+            AgendaSnapshot(
+                rangeStart = firstDay,
+                tasks = tasks,
+                events = events.expandRecurringInstances(firstDay, lastDay)
+            )
         }.map { snapshot -> snapshot.copy(rangeEnd = lastDay) }
     }
 }
@@ -61,4 +77,84 @@ data class AgendaSnapshot(
     val overdueTasks: List<Task> = tasks.filter { it.isOverdue() }
     val completedCount: Int = tasks.count { it.status.isDone() }
     val pendingCount: Int = tasks.size - completedCount
+    val conflictingEventIds: Set<UUID> = events.resolveConflictingEventIds()
+}
+
+private fun List<CalendarEvent>.resolveConflictingEventIds(): Set<UUID> {
+    if (size <= 1) return emptySet()
+
+    val sortedByStart = sortedBy { it.start }
+    val conflicts = mutableSetOf<UUID>()
+
+    for (index in sortedByStart.indices) {
+        val current = sortedByStart[index]
+        for (otherIndex in index + 1 until sortedByStart.size) {
+            val other = sortedByStart[otherIndex]
+            if (!current.end.isAfter(other.start)) {
+                break
+            }
+
+            if (current.start.isBefore(other.end) && other.start.isBefore(current.end)) {
+                conflicts += current.id
+                conflicts += other.id
+            }
+        }
+    }
+
+    return conflicts
+}
+
+private fun List<CalendarEvent>.expandRecurringInstances(
+    rangeStart: LocalDate,
+    rangeEnd: LocalDate
+): List<CalendarEvent> {
+    if (isEmpty()) return emptyList()
+
+    val expanded = flatMap { event ->
+        val recurrence = event.recurrence ?: return@flatMap listOf(event)
+        event.expandOccurrences(recurrence, rangeStart, rangeEnd)
+    }
+
+    return expanded.sortedBy { it.start }
+}
+
+private fun CalendarEvent.expandOccurrences(
+    recurrence: Recurrence,
+    rangeStart: LocalDate,
+    rangeEnd: LocalDate
+): List<CalendarEvent> {
+    val startWindow = rangeStart.atStartOfDay()
+    val endWindowExclusive = rangeEnd.plusDays(1).atStartOfDay()
+    val maxOccurrences = recurrence.occurrences ?: Int.MAX_VALUE
+    val occurrences = mutableListOf<CalendarEvent>()
+
+    var produced = 0
+    var currentStart: LocalDateTime = start
+    var currentEnd: LocalDateTime = end
+
+    while (produced < maxOccurrences && currentStart.isBefore(endWindowExclusive)) {
+        if (!currentEnd.isBefore(startWindow) && currentStart.isBefore(endWindowExclusive)) {
+            occurrences += copy(start = currentStart, end = currentEnd)
+        }
+
+        produced++
+        if (produced >= maxOccurrences) {
+            break
+        }
+
+        currentStart = currentStart.advanceBy(recurrence)
+        currentEnd = currentEnd.advanceBy(recurrence)
+    }
+
+    return occurrences
+}
+
+private fun LocalDateTime.advanceBy(recurrence: Recurrence): LocalDateTime {
+    val interval = recurrence.interval.coerceAtLeast(1)
+    return when (recurrence.rule) {
+        RecurrenceRule.Daily -> plusDays(interval.toLong())
+        RecurrenceRule.Weekly -> plusWeeks(interval.toLong())
+        RecurrenceRule.Monthly -> plusMonths(interval.toLong())
+        RecurrenceRule.Yearly -> plusYears(interval.toLong())
+    }
 }
