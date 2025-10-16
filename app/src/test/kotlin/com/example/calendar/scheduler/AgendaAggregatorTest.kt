@@ -140,6 +140,37 @@ class AgendaAggregatorTest {
         assertEquals(listOf(overdue), snapshot.overdueTasks)
     }
 
+    @Test
+    fun `marks overlapping events as conflicts`() = runBlocking {
+        val date = LocalDate.of(2024, 5, 11)
+        val first = CalendarEvent(
+            title = "Project kickoff",
+            start = LocalDateTime.of(2024, 5, 11, 9, 0),
+            end = LocalDateTime.of(2024, 5, 11, 10, 0)
+        )
+        val overlapping = CalendarEvent(
+            title = "Design review",
+            start = LocalDateTime.of(2024, 5, 11, 9, 30),
+            end = LocalDateTime.of(2024, 5, 11, 10, 30)
+        )
+        val separate = CalendarEvent(
+            title = "Lunch & learn",
+            start = LocalDateTime.of(2024, 5, 11, 12, 0),
+            end = LocalDateTime.of(2024, 5, 11, 13, 0)
+        )
+        val aggregator = AgendaAggregator(
+            taskRepository = FakeTaskRepository(dayTasks = mapOf(date to emptyList())),
+            eventRepository = FakeEventRepository(dayEvents = mapOf(date to listOf(first, overlapping, separate)))
+        )
+
+        val snapshot = aggregator.observeAgenda(AgendaPeriod.Day(date)).first()
+
+        assertEquals(setOf(first.id, overlapping.id), snapshot.conflictingEventIds)
+        assertTrue(snapshot.conflictingEventIds.contains(first.id))
+        assertTrue(snapshot.conflictingEventIds.contains(overlapping.id))
+        assertTrue(separate.id !in snapshot.conflictingEventIds)
+    }
+
     private class FakeTaskRepository(
         private val dayTasks: Map<LocalDate, List<Task>> = emptyMap(),
         private val weekTasks: Map<LocalDate, List<Task>> = emptyMap(),
