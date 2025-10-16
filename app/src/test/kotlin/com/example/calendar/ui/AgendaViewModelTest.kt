@@ -8,6 +8,7 @@ import com.example.calendar.data.Reminder
 import com.example.calendar.data.Task
 import com.example.calendar.data.TaskStatus
 import com.example.calendar.reminder.ReminderOrchestrator
+import com.example.calendar.ui.CompletedTaskFilter
 import com.example.calendar.reminder.ReminderPayload
 import com.example.calendar.reminder.ReminderScheduler
 import com.example.calendar.reminder.ReminderStore
@@ -195,12 +196,19 @@ class AgendaViewModelTest {
     }
 
     @Test
-    fun `toggle show completed tasks updates filter state`() = runTest(dispatcher) {
+    fun `cycling completed task filter rotates modes`() = runTest(dispatcher) {
         advanceUntilIdle()
 
-        assertTrue(viewModel.state.value.filters.showCompletedTasks)
-        viewModel.toggleShowCompletedTasks()
-        assertFalse(viewModel.state.value.filters.showCompletedTasks)
+        assertEquals(CompletedTaskFilter.All, viewModel.state.value.filters.completedTaskFilter)
+
+        viewModel.cycleCompletedTaskFilter()
+        assertEquals(CompletedTaskFilter.HideCompleted, viewModel.state.value.filters.completedTaskFilter)
+
+        viewModel.cycleCompletedTaskFilter()
+        assertEquals(CompletedTaskFilter.CompletedOnly, viewModel.state.value.filters.completedTaskFilter)
+
+        viewModel.cycleCompletedTaskFilter()
+        assertEquals(CompletedTaskFilter.All, viewModel.state.value.filters.completedTaskFilter)
     }
 
     @Test

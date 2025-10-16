@@ -76,11 +76,11 @@ class AgendaViewModel(
         }
     }
 
-    fun toggleShowCompletedTasks() {
+    fun cycleCompletedTaskFilter() {
         _state.update { current ->
             current.copy(
                 filters = current.filters.copy(
-                    showCompletedTasks = !current.filters.showCompletedTasks
+                    completedTaskFilter = current.filters.completedTaskFilter.next()
                 )
             )
         }
@@ -246,9 +246,21 @@ data class AgendaUiState(
 }
 
 data class AgendaFilters(
-    val showCompletedTasks: Boolean = true,
+    val completedTaskFilter: CompletedTaskFilter = CompletedTaskFilter.All,
     val showRecurringEvents: Boolean = true
 )
+
+enum class CompletedTaskFilter {
+    All,
+    HideCompleted,
+    CompletedOnly;
+
+    fun next(): CompletedTaskFilter = when (this) {
+        All -> HideCompleted
+        HideCompleted -> CompletedOnly
+        CompletedOnly -> All
+    }
+}
 
 private val DEFAULT_TASK_TIME: LocalTime = LocalTime.of(9, 0)
 private val DEFAULT_EVENT_START: LocalTime = LocalTime.of(9, 0)

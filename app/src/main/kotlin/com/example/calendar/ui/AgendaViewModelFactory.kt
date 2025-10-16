@@ -23,6 +23,6 @@ class AgendaViewModelFactory(
                 eventRepository = eventRepository
             ) as T
         }
-        throw IllegalArgumentException("Unknown ViewModel class: ${'$'}{modelClass.name}")
+        throw IllegalArgumentException("알 수 없는 ViewModel 클래스입니다: ${'$'}{modelClass.name}")
     }
 }

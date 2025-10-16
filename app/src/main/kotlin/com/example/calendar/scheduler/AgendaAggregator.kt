@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 /**
@@ -30,11 +32,11 @@ class AgendaAggregator(
         taskRepository.observeTasksForDay(date),
         eventRepository.observeEventsForDay(date)
     ) { tasks, events ->
-        AgendaSnapshot(
-            rangeStart = date,
-            tasks = tasks,
-            events = events.expandRecurringInstances(date, date)
-        )
+            AgendaSnapshot(
+                rangeStart = date,
+                tasks = tasks,
+                events = events.expandRecurringInstances(date, date)
+            )
     }
 
     private fun observeWeek(start: LocalDate): Flow<AgendaSnapshot> {
@@ -101,4 +103,96 @@ private fun List<CalendarEvent>.resolveConflictingEventIds(): Set<UUID> {
     }
 
     return conflicts
+}
+
+private fun List<CalendarEvent>.expandRecurringInstances(
+    rangeStart: LocalDate,
+    rangeEnd: LocalDate
+): List<CalendarEvent> {
+    if (isEmpty()) return emptyList()
+
+    val startBoundary = rangeStart.atStartOfDay()
+    val endBoundaryExclusive = rangeEnd.plusDays(1).atStartOfDay()
+    val expanded = mutableListOf<CalendarEvent>()
+
+    for (event in this) {
+        val recurrence = event.recurrence
+        if (recurrence == null) {
+            if (event.end > startBoundary && event.start < endBoundaryExclusive) {
+                expanded += event
+            }
+            continue
+        }
+
+        val interval = recurrence.interval.coerceAtLeast(1)
+        val maxOccurrences = recurrence.occurrences?.coerceAtLeast(1) ?: Int.MAX_VALUE
+        val indexOffset = firstRelevantOccurrenceIndex(event.start, startBoundary, recurrence.rule, interval)
+            .coerceAtMost(maxOccurrences - 1)
+
+        var occurrenceIndex = indexOffset
+        var currentStart = addOccurrences(event.start, recurrence.rule, interval, occurrenceIndex)
+        var currentEnd = addOccurrences(event.end, recurrence.rule, interval, occurrenceIndex)
+
+        // Skip occurrences that still end before the visible window.
+        while (occurrenceIndex < maxOccurrences && currentEnd <= startBoundary) {
+            occurrenceIndex += 1
+            if (occurrenceIndex >= maxOccurrences) break
+            currentStart = addOccurrences(event.start, recurrence.rule, interval, occurrenceIndex)
+            currentEnd = addOccurrences(event.end, recurrence.rule, interval, occurrenceIndex)
+        }
+
+        while (occurrenceIndex < maxOccurrences && currentStart < endBoundaryExclusive) {
+            if (currentEnd > startBoundary) {
+                expanded += event.copy(
+                    start = currentStart,
+                    end = currentEnd
+                )
+            }
+            occurrenceIndex += 1
+            if (occurrenceIndex >= maxOccurrences) break
+            currentStart = addOccurrences(event.start, recurrence.rule, interval, occurrenceIndex)
+            currentEnd = addOccurrences(event.end, recurrence.rule, interval, occurrenceIndex)
+        }
+    }
+
+    return expanded.sortedBy { it.start }
+}
+
+private fun firstRelevantOccurrenceIndex(
+    eventStart: LocalDateTime,
+    rangeStart: LocalDateTime,
+    rule: RecurrenceRule,
+    interval: Int
+): Int {
+    if (!eventStart.isBefore(rangeStart)) return 0
+
+    val unitsBetween = when (rule) {
+        RecurrenceRule.Daily -> ChronoUnit.DAYS.between(eventStart, rangeStart)
+        RecurrenceRule.Weekly -> ChronoUnit.WEEKS.between(eventStart, rangeStart)
+        RecurrenceRule.Monthly -> ChronoUnit.MONTHS.between(eventStart, rangeStart)
+        RecurrenceRule.Yearly -> ChronoUnit.YEARS.between(eventStart, rangeStart)
+    }
+
+    if (unitsBetween <= 0) return 0
+
+    val intervalLong = interval.toLong()
+    val tentativeIndex = (unitsBetween / intervalLong).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+    return tentativeIndex.coerceAtLeast(0)
+}
+
+private fun addOccurrences(
+    dateTime: LocalDateTime,
+    rule: RecurrenceRule,
+    interval: Int,
+    occurrences: Int
+): LocalDateTime {
+    if (occurrences <= 0) return dateTime
+
+    val step = occurrences.toLong() * interval.coerceAtLeast(1)
+    return when (rule) {
+        RecurrenceRule.Daily -> dateTime.plusDays(step)
+        RecurrenceRule.Weekly -> dateTime.plusWeeks(step)
+        RecurrenceRule.Monthly -> dateTime.plusMonths(step)
+        RecurrenceRule.Yearly -> dateTime.plusYears(step)
+    }
 }
