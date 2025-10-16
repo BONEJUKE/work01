@@ -6,6 +6,7 @@
 - **Compose 우선 아젠다 셸** – `CalendarApp`과 `AgendaRoute`가 탭·리스트·바텀시트를 포함한 전체 Agenda UI 골격을 제공합니다. (Compose-first agenda shell ready for navigation wiring.)
 - **리마인더 오케스트레이션** – `ReminderOrchestrator`, `AndroidReminderScheduler`, `SharedPreferencesReminderStore`가 AlarmManager·WorkManager 기반 알림을 예약하고 재부팅 후에도 복원합니다. (AlarmManager/WorkManager-backed reminders that persist across restarts.)
 - **빠른 추가 플로우** – Floating Action Button으로 일정/할 일을 최소 입력으로 즉시 등록할 수 있습니다. (Quick add FAB flow for tasks and events.)
+- **Room 기반 컨테이너** – `RoomAppContainer`가 `CalendarDatabase`와 Room 리포지토리를 빌드하고, `ReminderStoreSynchronizer`로 SharedPreferences 리마인더 저장소와 동기화합니다. (Room-backed container with shared reminder synchronization.)
 
 ## 주요 기능
 - 일정, 할 일, 리마인더 도메인 모델과 리포지토리가 구축되어 있습니다.
@@ -23,13 +24,14 @@
 2. 레포지토리에 포함된 Gradle 래퍼(`./gradlew`)로 빌드·테스트를 실행합니다. 일부 코드 호스팅에서 바이너리 업로드가 제한되는
    관계로 래퍼 JAR은 `gradle/wrapper/gradle-wrapper.jar.base64`에 Base64 텍스트로 보관되며, `./gradlew`와 `gradlew.bat`가 최초 실행
    시 자동으로 복원합니다.
-3. Room 또는 다른 영속성 계층과 AlarmManager/WorkManager 권한 플로우를 실제 앱 환경에 맞게 연결합니다.
+3. 기본 `RoomAppContainer`가 Room DB와 알림 스케줄러/SharedPreferences 저장소를 빌드하므로, 필요 시 앱 환경에 맞춰 마이그레이션 전략이나 백업 정책만 조정하면 됩니다.
 4. `docs/ux-flows.md`를 참고해 내비게이션 및 추가 화면을 구성합니다.
 
 ## 품질 및 테스트 현황
 - `AgendaScreen`의 로딩·빈 상태·오류 UI에 접근성 안내 및 라이브 리전을 추가했습니다.
 - 기본 Compose UI 계측 테스트(`AgendaScreenTest`)가 FAB/리스트 표시 여부를 검증합니다.
 - Aggregator, Reminder, ViewModel 단위 테스트가 포함되어 있으며, 도메인 회귀 보강 테스트는 추가 작업으로 남아 있습니다.
+- 새로운 계측 테스트(`CalendarAppNotificationTest`, `QuickAddFlowTest`)가 알림 권한 안내 카드와 빠른 추가 플로우 회귀를 막습니다.
 - GitHub Actions 워크플로(`.github/workflows/ci.yml`)가 래퍼 검증과 테스트 실행을 자동화합니다.
 
 ## 현재 상태 진단
@@ -38,22 +40,23 @@
 - `AgendaViewModel`이 애그리게이터·리포지토리와 연결되어 일정/할 일 토글·삭제·빠른 추가 시 리마인더 스케줄링까지 처리합니다.
 - `ReminderOrchestrator`와 `AndroidReminderScheduler`가 AlarmManager·WorkManager·워커/리시버 연동으로 알림 예약 파이프라인을 구성했습니다.
 - `SharedPreferencesReminderStore`를 통해 예약된 리마인더를 저장·복원해 앱 재시작이나 기기 재부팅 이후에도 스케줄이 유지됩니다.
+- `RoomAppContainer`가 Room 데이터베이스 및 리포지토리를 앱 컨테이너에 연결해 프로세스 재시작 후에도 데이터가 유지됩니다.
+- `ReminderStoreSynchronizer`가 SharedPreferences 리마인더 저장소를 Room 데이터와 자동 동기화해 다중 기기/계정 시나리오를 대비합니다.
 - 단위/계측 테스트로 애그리게이터, 뷰모델, Compose Agenda 화면 핵심 시나리오를 검증합니다.
 - Gradle 래퍼와 GitHub Actions CI 워크플로가 포함되어 일관된 빌드 환경을 제공합니다.
 
 ### 부분 완료
-- Room 데이터베이스/DAO/Repository는 준비돼 있으나 `QuickStartAppContainer`가 인메모리 저장소를 주입해 실제 영속 계층 연결이 미완료입니다.
-- SharedPreferences 기반 저장소로 인메모리 샘플을 보완했지만, Room 데이터와의 동기화는 추가 작업이 필요합니다.
+- 다중 기기/백그라운드 동기화를 대비한 리마인더 재동기화 흐름은 구현됐지만, 실제 단말의 재부팅·네트워크 전환 시나리오 검증이 필요합니다.
+- ViewModel/도메인 회귀 단위 테스트 확장은 여전히 진행 중입니다.
 
 ### 미구현
-- Room DB를 실제 앱 컨테이너에 연결해 프로세스/앱 재시작 간에도 일정·할 일을 보존해야 합니다.
-- 예약된 리마인더 메타데이터를 저장·복구하고 기기 재부팅 이후 알람을 재스케줄링하는 흐름이 필요합니다.
-- WorkManager/AlarmManager 연동을 계측 또는 통합 테스트로 검증하는 자동화가 아직 없습니다.
+- WorkManager/AlarmManager 기반 알림이 실제 기기/에뮬레이터에서 예상대로 동작하는지에 대한 통합 테스트.
+- 클라우드 동기화나 외부 캘린더 가져오기 같은 대량 데이터 시나리오에 대한 성능/안정성 검증.
 
 ### 남은 과제
-1. Room 기반 `AppContainer`를 작성해 `CalendarDatabase` 빌드 및 `RoomTaskRepository`/`RoomEventRepository`를 주입하고 인메모리 컨테이너를 교체합니다.
-2. SharedPreferences 저장소를 Room 기반 영속 계층과 동기화해 다중 기기/계정 시나리오까지 대비합니다.
-3. 알림 권한 안내·빠른 추가 플로우에 대한 계측/통합 테스트를 보강해 회귀를 방지합니다.
+1. 주·월 뷰 집계를 검증하는 ViewModel/도메인 단위 테스트를 추가해 데이터 회귀를 조기에 감지합니다.
+2. 실제 단말에서 알림 권한/스케줄링 플로우를 검증하는 E2E 테스트 시나리오를 작성합니다.
+3. 클라우드 동기화(예: 서버에서 내려오는 일정)와의 충돌 해결 전략을 설계하고 문서화합니다.
 
 ## 우선순위 로드맵
 | 우선순위 | 작업 | 상태 | 메모 |

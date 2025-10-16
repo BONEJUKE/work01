@@ -12,6 +12,9 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE period = :period ORDER BY dueAt IS NULL, dueAt")
     fun observeTasksByPeriod(period: AgendaPeriod): Flow<List<Task>>
 
+    @Query("SELECT * FROM tasks")
+    fun observeAllTasks(): Flow<List<Task>>
+
     @Query("SELECT * FROM tasks WHERE id = :id LIMIT 1")
     suspend fun findById(id: UUID): Task?
 

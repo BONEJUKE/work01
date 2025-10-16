@@ -26,6 +26,9 @@ interface CalendarEventDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(event: CalendarEvent)
 
+    @Query("SELECT * FROM calendar_events")
+    fun observeAllEvents(): Flow<List<CalendarEvent>>
+
     @Query("DELETE FROM calendar_events WHERE id = :id")
     suspend fun deleteById(id: UUID)
 }
