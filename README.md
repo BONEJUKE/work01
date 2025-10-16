@@ -1,12 +1,12 @@
-# Work01 Calendar App (워크01 캘린더 앱)
+# 워크01 캘린더 앱
 
-워크01 캘린더 앱은 일정, 리마인더, 할 일 관리를 하나의 Compose 기반 경험으로 통합하는 Kotlin 우선 Android 프로젝트입니다. (An Android calendar planner that unifies schedules, reminders, and to-dos.)
+워크01 캘린더 앱은 일정, 리마인더, 할 일 관리를 하나의 Compose 기반 경험으로 통합하는 Kotlin 우선 Android 프로젝트입니다.
 
 ## 프로젝트 하이라이트
-- **Compose 우선 아젠다 셸** – `CalendarApp`과 `AgendaRoute`가 탭·리스트·바텀시트를 포함한 전체 Agenda UI 골격을 제공합니다. (Compose-first agenda shell ready for navigation wiring.)
-- **리마인더 오케스트레이션** – `ReminderOrchestrator`, `AndroidReminderScheduler`, `SharedPreferencesReminderStore`가 AlarmManager·WorkManager 기반 알림을 예약하고 재부팅 후에도 복원합니다. (AlarmManager/WorkManager-backed reminders that persist across restarts.)
-- **빠른 추가 플로우** – Floating Action Button으로 일정/할 일을 최소 입력으로 즉시 등록할 수 있습니다. (Quick add FAB flow for tasks and events.)
-- **Room 기반 컨테이너** – `RoomAppContainer`가 `CalendarDatabase`와 Room 리포지토리를 빌드하고, `ReminderStoreSynchronizer`로 SharedPreferences 리마인더 저장소와 동기화합니다. (Room-backed container with shared reminder synchronization.)
+- **Compose 우선 아젠다 셸** – `CalendarApp`과 `AgendaRoute`가 탭·리스트·바텀시트를 포함한 전체 Agenda UI 골격을 제공합니다.
+- **리마인더 오케스트레이션** – `ReminderOrchestrator`, `AndroidReminderScheduler`, `SharedPreferencesReminderStore`가 AlarmManager·WorkManager 기반 알림을 예약하고 재부팅 후에도 복원합니다.
+- **빠른 추가 플로우** – Floating Action Button으로 일정/할 일을 최소 입력으로 즉시 등록할 수 있습니다.
+- **Room 기반 컨테이너** – `RoomAppContainer`가 `CalendarDatabase`와 Room 리포지토리를 빌드하고, `ReminderStoreSynchronizer`로 SharedPreferences 리마인더 저장소와 동기화합니다.
 
 ## 주요 기능
 - 일정, 할 일, 리마인더 도메인 모델과 리포지토리가 구축되어 있습니다.
@@ -75,4 +75,4 @@
 - `docs/sync-conflict-strategy.md` – 서버/외부 캘린더 동기화 충돌 해결 정책과 테스트 전략.
 
 ## 권한
-Android 13 이상에서 `POST_NOTIFICATIONS` 런타임 권한을 요청하며, 정확한 알림을 위해 `SCHEDULE_EXACT_ALARM` 권한을 선언합니다. (Requires `POST_NOTIFICATIONS` runtime permission on Android 13+ and declares `SCHEDULE_EXACT_ALARM`.)
+Android 13 이상에서 `POST_NOTIFICATIONS` 런타임 권한을 요청하며, 정확한 알림을 위해 `SCHEDULE_EXACT_ALARM` 권한을 선언합니다.
