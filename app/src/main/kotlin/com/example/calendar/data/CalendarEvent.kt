@@ -19,7 +19,7 @@ data class CalendarEvent(
     val recurrenceExceptions: List<RecurrenceException> = emptyList()
 ) {
     init {
-        require(!end.isBefore(start)) { "Event end time must be after start time" }
+        require(!end.isBefore(start)) { "이벤트 종료 시간은 시작 시간 이후여야 합니다." }
     }
 
     internal fun applyOverride(
@@ -72,12 +72,12 @@ data class RecurrenceException(
             require(overrideStart == null && overrideEnd == null && overrideTitle == null &&
                 overrideDescription == null && overrideLocation == null && nextRecurrenceOverride == null
             ) {
-                "Cancelled instances cannot provide override values"
+                "취소된 인스턴스에는 덮어쓰기 값을 지정할 수 없습니다."
             }
         }
         if (overrideStart != null && overrideEnd != null) {
             require(!overrideEnd.isBefore(overrideStart)) {
-                "Override end must be after override start"
+                "덮어쓴 종료 시간은 시작 시간 이후여야 합니다."
             }
         }
     }
