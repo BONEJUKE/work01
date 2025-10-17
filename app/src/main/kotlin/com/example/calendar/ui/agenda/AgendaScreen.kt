@@ -42,6 +42,7 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -82,6 +83,7 @@ import com.example.calendar.data.AgendaPeriod
 import com.example.calendar.data.CalendarEvent
 import com.example.calendar.data.Recurrence
 import com.example.calendar.data.RecurrenceRule
+import com.example.calendar.data.Reminder
 import com.example.calendar.data.Task
 import com.example.calendar.data.TaskStatus
 import com.example.calendar.scheduler.AgendaSnapshot
@@ -307,7 +309,8 @@ fun AgendaRoute(
                                 focusDate = content.focusDate,
                                 period = content.period,
                                 description = input.notes,
-                                dueTime = input.dueTime
+                                dueTime = input.dueTime,
+                                reminders = input.reminders
                             )
                             .map {}
                     },
@@ -320,7 +323,8 @@ fun AgendaRoute(
                                 description = input.notes,
                                 location = input.location,
                                 startTime = input.startTime,
-                                endTime = input.endTime
+                                endTime = input.endTime,
+                                reminders = input.reminders
                             )
                             .map {}
                     },
@@ -1519,12 +1523,17 @@ private fun QuickAddSheet(
     var taskTitle by rememberSaveable { mutableStateOf("") }
     var taskNotes by rememberSaveable { mutableStateOf("") }
     var taskTime by rememberSaveable { mutableStateOf(DEFAULT_TASK_TIME_TEXT) }
+    var taskReminderEnabled by rememberSaveable { mutableStateOf(false) }
+    var taskReminderMinutes by rememberSaveable { mutableStateOf(DEFAULT_REMINDER_MINUTES_TEXT) }
+    var taskReminderAllowSnooze by rememberSaveable { mutableStateOf(true) }
 
     var eventTitle by rememberSaveable { mutableStateOf("") }
     var eventLocation by rememberSaveable { mutableStateOf("") }
     var eventNotes by rememberSaveable { mutableStateOf("") }
     var eventStartTime by rememberSaveable { mutableStateOf(DEFAULT_EVENT_START_TEXT) }
     var eventEndTime by rememberSaveable { mutableStateOf(DEFAULT_EVENT_END_TEXT) }
+    var eventReminderEnabled by rememberSaveable { mutableStateOf(false) }
+    var eventReminderMinutes by rememberSaveable { mutableStateOf(DEFAULT_REMINDER_MINUTES_TEXT) }
 
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isSaving by remember { mutableStateOf(false) }
@@ -1598,6 +1607,65 @@ private fun QuickAddSheet(
                         )
                     }
                 )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Switch(
+                        checked = taskReminderEnabled,
+                        onCheckedChange = { taskReminderEnabled = it },
+                        modifier = Modifier.testTag("quickAddTaskReminderToggle")
+                    )
+                    Column {
+                        Text("리마인더 사용")
+                        Text(
+                            text = "마감 전에 알림을 받아요.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                if (taskReminderEnabled) {
+                    OutlinedTextField(
+                        value = taskReminderMinutes,
+                        onValueChange = { value ->
+                            taskReminderMinutes = value.filter { it.isDigit() }
+                        },
+                        label = { Text("알림 시점 (분)") },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("quickAddTaskReminderMinutes"),
+                        supportingText = {
+                            val minutesText = taskReminderMinutes.ifBlank { "X" }
+                            Text(
+                                text = "마감 $minutesText분 전에 알림이 울립니다.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Switch(
+                            checked = taskReminderAllowSnooze,
+                            onCheckedChange = { taskReminderAllowSnooze = it },
+                            modifier = Modifier.testTag("quickAddTaskReminderSnooze")
+                        )
+                        Column {
+                            Text("스누즈 허용")
+                            Text(
+                                text = "알림에서 다시 알리기를 사용할 수 있어요.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
             }
             QuickAddType.Event -> {
                 OutlinedTextField(
@@ -1643,6 +1711,51 @@ private fun QuickAddSheet(
                         .fillMaxWidth()
                         .testTag("quickAddEventNotes")
                 )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Switch(
+                        checked = eventReminderEnabled,
+                        onCheckedChange = { eventReminderEnabled = it },
+                        modifier = Modifier.testTag("quickAddEventReminderToggle")
+                    )
+                    Column {
+                        Text("리마인더 사용")
+                        Text(
+                            text = "시작 전에 알림을 받아요.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                if (eventReminderEnabled) {
+                    OutlinedTextField(
+                        value = eventReminderMinutes,
+                        onValueChange = { value ->
+                            eventReminderMinutes = value.filter { it.isDigit() }
+                        },
+                        label = { Text("알림 시점 (분)") },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("quickAddEventReminderMinutes"),
+                        supportingText = {
+                            val minutesText = eventReminderMinutes.ifBlank { "X" }
+                            Text(
+                                text = "시작 $minutesText분 전에 알림이 울립니다.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    )
+                    Text(
+                        text = "이벤트 리마인더는 스누즈를 지원하지 않아요.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
 
@@ -1685,13 +1798,30 @@ private fun QuickAddSheet(
 
                             val dueTimeValue = dueTimeResult?.getOrNull()
 
+                            val reminders = if (taskReminderEnabled) {
+                                val minutesText = taskReminderMinutes.trim()
+                                val minutes = minutesText.toLongOrNull()
+                                if (minutes == null || minutes <= 0) {
+                                    errorMessage = "리마인더 시점은 1분 이상 입력해 주세요."
+                                    return@Button
+                                }
+                                if (dueTimeValue == null) {
+                                    errorMessage = "마감 시간을 설정해야 리마인더를 사용할 수 있어요."
+                                    return@Button
+                                }
+                                listOf(Reminder(minutesBefore = minutes, allowSnooze = taskReminderAllowSnooze))
+                            } else {
+                                emptyList()
+                            }
+
                             coroutineScope.launch {
                                 isSaving = true
                                 val result = onCreateTask(
                                     QuickAddTaskInput(
                                         title = title,
                                         notes = taskNotes.takeIf { it.isNotBlank() },
-                                        dueTime = dueTimeValue
+                                        dueTime = dueTimeValue,
+                                        reminders = reminders
                                     )
                                 )
                                 if (result.isSuccess) {
@@ -1725,6 +1855,18 @@ private fun QuickAddSheet(
                                 return@Button
                             }
 
+                            val reminders = if (eventReminderEnabled) {
+                                val minutesText = eventReminderMinutes.trim()
+                                val minutes = minutesText.toLongOrNull()
+                                if (minutes == null || minutes <= 0) {
+                                    errorMessage = "리마인더 시점은 1분 이상 입력해 주세요."
+                                    return@Button
+                                }
+                                listOf(Reminder(minutesBefore = minutes, allowSnooze = false))
+                            } else {
+                                emptyList()
+                            }
+
                             coroutineScope.launch {
                                 isSaving = true
                                 val result = onCreateEvent(
@@ -1733,7 +1875,8 @@ private fun QuickAddSheet(
                                         location = eventLocation.takeIf { it.isNotBlank() },
                                         notes = eventNotes.takeIf { it.isNotBlank() },
                                         startTime = startValue,
-                                        endTime = endValue
+                                        endTime = endValue,
+                                        reminders = reminders
                                     )
                                 )
                                 if (result.isSuccess) {
@@ -2039,7 +2182,8 @@ private val previewAgendaEvents: List<CalendarEvent> = listOf(
 private data class QuickAddTaskInput(
     val title: String,
     val notes: String?,
-    val dueTime: LocalTime?
+    val dueTime: LocalTime?,
+    val reminders: List<Reminder> = emptyList()
 )
 
 private data class QuickAddEventInput(
@@ -2047,13 +2191,15 @@ private data class QuickAddEventInput(
     val location: String?,
     val notes: String?,
     val startTime: LocalTime,
-    val endTime: LocalTime
+    val endTime: LocalTime,
+    val reminders: List<Reminder> = emptyList()
 )
 
 
 private const val DEFAULT_TASK_TIME_TEXT = "09:00"
 private const val DEFAULT_EVENT_START_TEXT = "09:00"
 private const val DEFAULT_EVENT_END_TEXT = "10:00"
+private const val DEFAULT_REMINDER_MINUTES_TEXT = "30"
 
 private fun LocalDate.startOfWeek(): LocalDate {
     var date = this
