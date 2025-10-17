@@ -202,18 +202,6 @@ fun AgendaRoute(
                         hideSheet()
                     }
                 }
-                is AgendaSheetContent.TaskEdit -> {
-                    val existing = snapshot.tasks.find { it.id == currentContent.task.id }
-                    if (existing == null) {
-                        hideSheet()
-                    }
-                }
-                is AgendaSheetContent.EventEdit -> {
-                    val existing = snapshot.events.find { it.id == currentContent.event.id }
-                    if (existing == null) {
-                        hideSheet()
-                    }
-                }
                 is AgendaSheetContent.QuickAdd -> Unit
             }
         }
@@ -293,8 +281,8 @@ fun AgendaRoute(
                         hideSheet()
                     },
                     onEditTask = { task ->
+                        hideSheet()
                         onTaskEdit(task)
-                        sheetContent = AgendaSheetContent.TaskEdit(task)
                     },
                     onClose = hideSheet
                 )
@@ -305,28 +293,8 @@ fun AgendaRoute(
                         hideSheet()
                     },
                     onEditEvent = { event ->
+                        hideSheet()
                         onEventEdit(event)
-                        sheetContent = AgendaSheetContent.EventEdit(event)
-                    },
-                    onClose = hideSheet
-                )
-                is AgendaSheetContent.TaskEdit -> TaskEditSheet(
-                    task = content.task,
-                    onSaveTask = { title, notes, dueAt ->
-                        viewModel.updateTask(content.task, title, notes, dueAt)
-                    },
-                    onSaved = { updated ->
-                        sheetContent = AgendaSheetContent.TaskDetail(updated)
-                    },
-                    onClose = hideSheet
-                )
-                is AgendaSheetContent.EventEdit -> EventEditSheet(
-                    event = content.event,
-                    onSaveEvent = { title, description, location, start, end ->
-                        viewModel.updateEvent(content.event, title, description, location, start, end)
-                    },
-                    onSaved = { updated ->
-                        sheetContent = AgendaSheetContent.EventDetail(updated)
                     },
                     onClose = hideSheet
                 )
@@ -1421,8 +1389,6 @@ private fun TaskStatusBadge(status: TaskStatus) {
 private sealed interface AgendaSheetContent {
     data class TaskDetail(val task: Task) : AgendaSheetContent
     data class EventDetail(val event: CalendarEvent) : AgendaSheetContent
-    data class TaskEdit(val task: Task) : AgendaSheetContent
-    data class EventEdit(val event: CalendarEvent) : AgendaSheetContent
     data class QuickAdd(
         val initialType: QuickAddType,
         val focusDate: LocalDate,
@@ -1537,302 +1503,6 @@ private fun EventDetailSheet(
             }
             TextButton(onClick = onClose) {
                 Text("닫기")
-            }
-        }
-    }
-}
-
-@Composable
-private fun TaskEditSheet(
-    task: Task,
-    onSaveTask: suspend (title: String, notes: String?, dueAt: LocalDateTime?) -> Result<Task>,
-    onSaved: (Task) -> Unit,
-    onClose: () -> Unit
-) {
-    var title by rememberSaveable(task.id.toString()) { mutableStateOf(task.title) }
-    var notes by rememberSaveable(task.id.toString()) { mutableStateOf(task.description.orEmpty()) }
-    var dueDateText by rememberSaveable(task.id.toString()) {
-        mutableStateOf(task.dueAt?.toLocalDate()?.toString() ?: "")
-    }
-    var dueTimeText by rememberSaveable(task.id.toString()) {
-        mutableStateOf(task.dueAt?.toLocalTime()?.format(QuickAddTimeFormatter) ?: "")
-    }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var isSaving by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Text(
-            text = "할 일 편집",
-            style = MaterialTheme.typography.titleLarge
-        )
-        OutlinedTextField(
-            value = title,
-            onValueChange = { title = it },
-            label = { Text("제목") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedTextField(
-            value = notes,
-            onValueChange = { notes = it },
-            label = { Text("메모 (선택)") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedTextField(
-            value = dueDateText,
-            onValueChange = { dueDateText = it },
-            label = { Text("마감 날짜 (YYYY-MM-DD)") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            supportingText = {
-                Text(
-                    text = "비워 두면 날짜 없이 저장됩니다.",
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-        )
-        OutlinedTextField(
-            value = dueTimeText,
-            onValueChange = { dueTimeText = it },
-            label = { Text("마감 시간 (HH:mm)") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            supportingText = {
-                Text(
-                    text = "날짜 또는 시간을 비워 두면 마감 시간이 제거됩니다.",
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-        )
-
-        errorMessage?.let { message ->
-            Text(
-                text = message,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
-        ) {
-            TextButton(onClick = { if (!isSaving) onClose() }) {
-                Text("취소")
-            }
-            Button(
-                onClick = {
-                    if (isSaving) return@Button
-                    val normalizedTitle = title.trim()
-                    if (normalizedTitle.isEmpty()) {
-                        errorMessage = "제목을 입력해 주세요."
-                        return@Button
-                    }
-                    val normalizedNotes = notes.trim().takeIf { it.isNotEmpty() }
-                    val dateText = dueDateText.trim()
-                    val timeText = dueTimeText.trim()
-
-                    val dueAt = if (dateText.isEmpty() && timeText.isEmpty()) {
-                        null
-                    } else {
-                        if (dateText.isEmpty()) {
-                            errorMessage = "마감 날짜를 YYYY-MM-DD 형식으로 입력해 주세요."
-                            return@Button
-                        }
-                        val dateResult = runCatching { LocalDate.parse(dateText) }
-                        if (dateResult.isFailure) {
-                            errorMessage = "마감 날짜는 YYYY-MM-DD 형식이어야 해요."
-                            return@Button
-                        }
-                        if (timeText.isEmpty()) {
-                            errorMessage = "마감 시간을 HH:mm 형식으로 입력해 주세요."
-                            return@Button
-                        }
-                        val timeResult = parseInputTime(timeText)
-                        if (timeResult.isFailure) {
-                            errorMessage = "마감 시간은 HH:mm 형식이어야 해요."
-                            return@Button
-                        }
-                        LocalDateTime.of(dateResult.getOrThrow(), timeResult.getOrThrow())
-                    }
-
-                    coroutineScope.launch {
-                        isSaving = true
-                        errorMessage = null
-                        val result = onSaveTask(normalizedTitle, normalizedNotes, dueAt)
-                        if (result.isSuccess) {
-                            onSaved(result.getOrThrow())
-                        } else {
-                            errorMessage = result.exceptionOrNull()?.message ?: "저장에 실패했습니다."
-                        }
-                        isSaving = false
-                    }
-                },
-                enabled = !isSaving
-            ) {
-                Text(if (isSaving) "저장 중..." else "저장")
-            }
-        }
-    }
-}
-
-@Composable
-private fun EventEditSheet(
-    event: CalendarEvent,
-    onSaveEvent: suspend (
-        title: String,
-        description: String?,
-        location: String?,
-        start: LocalDateTime,
-        end: LocalDateTime
-    ) -> Result<CalendarEvent>,
-    onSaved: (CalendarEvent) -> Unit,
-    onClose: () -> Unit
-) {
-    var title by rememberSaveable(event.id.toString()) { mutableStateOf(event.title) }
-    var location by rememberSaveable(event.id.toString()) { mutableStateOf(event.location.orEmpty()) }
-    var notes by rememberSaveable(event.id.toString()) { mutableStateOf(event.description.orEmpty()) }
-    var dateText by rememberSaveable(event.id.toString()) { mutableStateOf(event.start.toLocalDate().toString()) }
-    var startTimeText by rememberSaveable(event.id.toString()) {
-        mutableStateOf(event.start.toLocalTime().format(QuickAddTimeFormatter))
-    }
-    var endTimeText by rememberSaveable(event.id.toString()) {
-        mutableStateOf(event.end.toLocalTime().format(QuickAddTimeFormatter))
-    }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var isSaving by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Text(
-            text = "일정 편집",
-            style = MaterialTheme.typography.titleLarge
-        )
-        OutlinedTextField(
-            value = title,
-            onValueChange = { title = it },
-            label = { Text("제목") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedTextField(
-            value = location,
-            onValueChange = { location = it },
-            label = { Text("위치 (선택)") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedTextField(
-            value = notes,
-            onValueChange = { notes = it },
-            label = { Text("메모 (선택)") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        OutlinedTextField(
-            value = dateText,
-            onValueChange = { dateText = it },
-            label = { Text("날짜 (YYYY-MM-DD)") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            OutlinedTextField(
-                value = startTimeText,
-                onValueChange = { startTimeText = it },
-                label = { Text("시작 시간 (HH:mm)") },
-                singleLine = true,
-                modifier = Modifier.weight(1f)
-            )
-            OutlinedTextField(
-                value = endTimeText,
-                onValueChange = { endTimeText = it },
-                label = { Text("종료 시간 (HH:mm)") },
-                singleLine = true,
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        errorMessage?.let { message ->
-            Text(
-                text = message,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
-        ) {
-            TextButton(onClick = { if (!isSaving) onClose() }) {
-                Text("취소")
-            }
-            Button(
-                onClick = {
-                    if (isSaving) return@Button
-                    val normalizedTitle = title.trim()
-                    if (normalizedTitle.isEmpty()) {
-                        errorMessage = "제목을 입력해 주세요."
-                        return@Button
-                    }
-                    val normalizedLocation = location.trim().takeIf { it.isNotEmpty() }
-                    val normalizedNotes = notes.trim().takeIf { it.isNotEmpty() }
-                    val parsedDate = runCatching { LocalDate.parse(dateText.trim()) }
-                    if (parsedDate.isFailure) {
-                        errorMessage = "날짜는 YYYY-MM-DD 형식이어야 해요."
-                        return@Button
-                    }
-                    val startResult = parseInputTime(startTimeText.trim())
-                    if (startResult.isFailure) {
-                        errorMessage = "시작 시간은 HH:mm 형식이어야 해요."
-                        return@Button
-                    }
-                    val endResult = parseInputTime(endTimeText.trim())
-                    if (endResult.isFailure) {
-                        errorMessage = "종료 시간은 HH:mm 형식이어야 해요."
-                        return@Button
-                    }
-                    val date = parsedDate.getOrThrow()
-                    val startDateTime = LocalDateTime.of(date, startResult.getOrThrow())
-                    val endDateTime = LocalDateTime.of(date, endResult.getOrThrow())
-                    if (endDateTime.isBefore(startDateTime)) {
-                        errorMessage = "종료 시간은 시작 시간 이후여야 해요."
-                        return@Button
-                    }
-
-                    coroutineScope.launch {
-                        isSaving = true
-                        errorMessage = null
-                        val result = onSaveEvent(
-                            normalizedTitle,
-                            normalizedNotes,
-                            normalizedLocation,
-                            startDateTime,
-                            endDateTime
-                        )
-                        if (result.isSuccess) {
-                            onSaved(result.getOrThrow())
-                        } else {
-                            errorMessage = result.exceptionOrNull()?.message ?: "저장에 실패했습니다."
-                        }
-                        isSaving = false
-                    }
-                },
-                enabled = !isSaving
-            ) {
-                Text(if (isSaving) "저장 중..." else "저장")
             }
         }
     }
@@ -2380,14 +2050,10 @@ private data class QuickAddEventInput(
     val endTime: LocalTime
 )
 
-private fun parseInputTime(value: String): Result<LocalTime> {
-    return runCatching { LocalTime.parse(value.trim(), QuickAddTimeFormatter) }
-}
 
 private const val DEFAULT_TASK_TIME_TEXT = "09:00"
 private const val DEFAULT_EVENT_START_TEXT = "09:00"
 private const val DEFAULT_EVENT_END_TEXT = "10:00"
-private val QuickAddTimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("H:mm", Locale.KOREAN)
 
 private fun LocalDate.startOfWeek(): LocalDate {
     var date = this
