@@ -29,7 +29,8 @@ class ReminderOrchestrator(
             targetDateTime = dueAt,
             reminders = task.reminders,
             deepLink = "app://task/${task.id}",
-            allowSnooze = true
+            allowSnooze = true,
+            taskId = task.id.toString()
         )
         replaceSchedule(baseId, schedule)
     }
@@ -42,7 +43,8 @@ class ReminderOrchestrator(
             targetDateTime = event.start,
             reminders = event.reminders,
             deepLink = "app://event/${event.id}",
-            allowSnooze = false
+            allowSnooze = false,
+            taskId = null
         )
         replaceSchedule(baseId, schedule)
     }
@@ -77,7 +79,8 @@ class ReminderOrchestrator(
             targetDateTime = dueAt,
             reminders = task.reminders,
             deepLink = "app://task/${task.id}",
-            allowSnooze = true
+            allowSnooze = true,
+            taskId = task.id.toString()
         )
 
         if (schedule.isEmpty()) {
@@ -105,7 +108,8 @@ class ReminderOrchestrator(
             targetDateTime = event.start,
             reminders = event.reminders,
             deepLink = "app://event/${event.id}",
-            allowSnooze = false
+            allowSnooze = false,
+            taskId = null
         )
 
         if (schedule.isEmpty()) {
@@ -142,7 +146,8 @@ class ReminderOrchestrator(
         targetDateTime: LocalDateTime,
         reminders: List<Reminder>,
         deepLink: String,
-        allowSnooze: Boolean
+        allowSnooze: Boolean,
+        taskId: String?
     ): List<StoredReminder> {
         val now = ZonedDateTime.now(zoneId)
         return buildList {
@@ -155,7 +160,9 @@ class ReminderOrchestrator(
                         title = title,
                         message = "${reminder.minutesBefore}분 전에 알림",
                         deepLink = deepLink,
-                        allowSnooze = allowSnooze && reminder.allowSnooze
+                        allowSnooze = allowSnooze && reminder.allowSnooze,
+                        taskId = taskId,
+                        baseId = baseId
                     )
                     add(
                         StoredReminder(

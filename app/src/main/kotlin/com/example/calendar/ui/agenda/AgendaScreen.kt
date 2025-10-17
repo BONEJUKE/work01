@@ -67,6 +67,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -88,6 +89,7 @@ import com.example.calendar.ui.AgendaFilters
 import com.example.calendar.ui.AgendaUiState
 import com.example.calendar.ui.AgendaUserMessage
 import com.example.calendar.ui.AgendaViewModel
+import com.example.calendar.ui.CompletedTaskFilter
 import com.example.calendar.ui.QuickAddType
 import com.example.calendar.ui.theme.CalendarTheme
 import java.time.DayOfWeek
@@ -101,12 +103,13 @@ import java.util.Locale
 import kotlinx.coroutines.launch
 import kotlin.math.min
 
-private val DayFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
-private val WeekFormatter = DateTimeFormatter.ofPattern("MMM d", Locale.getDefault())
-private val MonthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())
-private val WeekdayChipFormatter = DateTimeFormatter.ofPattern("EEE d", Locale.getDefault())
-private val DateTimeDetailFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy · h:mm a", Locale.getDefault())
-private val TimeOnlyFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault())
+private val DayFormatter = DateTimeFormatter.ofPattern("yyyy년 M월 d일 (E)", Locale.KOREAN)
+private val WeekFormatter = DateTimeFormatter.ofPattern("M월 d일", Locale.KOREAN)
+private val MonthFormatter = DateTimeFormatter.ofPattern("yyyy년 M월", Locale.KOREAN)
+private val WeekdayChipFormatter = DateTimeFormatter.ofPattern("E d일", Locale.KOREAN)
+private val WeekdayAccessibilityFormatter = DateTimeFormatter.ofPattern("M월 d일 EEEE", Locale.KOREAN)
+private val DateTimeDetailFormatter = DateTimeFormatter.ofPattern("yyyy년 M월 d일 a h시 mm분", Locale.KOREAN)
+private val TimeOnlyFormatter = DateTimeFormatter.ofPattern("a h시 mm분", Locale.KOREAN)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -239,7 +242,7 @@ fun AgendaRoute(
         onToggleTask = viewModel::toggleTask,
         onTaskClick = openTaskSheet,
         onEventClick = openEventSheet,
-        onToggleShowCompletedTasks = viewModel::toggleShowCompletedTasks,
+        onCycleCompletedTaskFilter = viewModel::cycleCompletedTaskFilter,
         onToggleShowRecurringEvents = viewModel::toggleShowRecurringEvents,
         onWeekDaySelected = { date ->
             updateFocus(date)
@@ -364,7 +367,7 @@ fun AgendaScreen(
     onToggleTask: (Task) -> Unit,
     onTaskClick: (Task) -> Unit,
     onEventClick: (CalendarEvent) -> Unit,
-    onToggleShowCompletedTasks: () -> Unit,
+    onCycleCompletedTaskFilter: () -> Unit,
     onToggleShowRecurringEvents: () -> Unit,
     onWeekDaySelected: (LocalDate) -> Unit,
     onMonthDaySelected: (LocalDate) -> Unit,
@@ -429,7 +432,7 @@ fun AgendaScreen(
                         onToggleTask = onToggleTask,
                         onTaskClick = onTaskClick,
                         onEventClick = onEventClick,
-                        onToggleShowCompletedTasks = onToggleShowCompletedTasks,
+                        onCycleCompletedTaskFilter = onCycleCompletedTaskFilter,
                         onToggleShowRecurringEvents = onToggleShowRecurringEvents,
                         selectedTab = selectedTab,
                         modifier = Modifier.fillMaxSize()
@@ -506,7 +509,7 @@ private fun AgendaTabRow(
                 modifier = Modifier.semantics {
                     contentDescription = tab.accessibleLabel()
                     role = Role.Tab
-                    stateDescription = if (isSelected) "Selected" else "Not selected"
+                    stateDescription = if (isSelected) "선택됨" else "선택되지 않음"
                 }
             ) {
                 Text(
@@ -580,7 +583,12 @@ private fun WeekdaySelector(
                         textAlign = TextAlign.Center
                     )
                 },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics {
+                        contentDescription = date.format(WeekdayAccessibilityFormatter)
+                        selected = date == focusedDay
+                    }
             )
         }
     }
@@ -603,7 +611,7 @@ private fun MonthDayGrid(
         ) {
             DayOfWeek.values().forEach { dayOfWeek ->
                 Text(
-                    text = dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
+                    text = dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.KOREAN),
                     style = MaterialTheme.typography.bodySmall,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.weight(1f)
@@ -710,7 +718,7 @@ private fun AgendaSnapshotContent(
     onToggleTask: (Task) -> Unit,
     onTaskClick: (Task) -> Unit,
     onEventClick: (CalendarEvent) -> Unit,
-    onToggleShowCompletedTasks: () -> Unit,
+    onCycleCompletedTaskFilter: () -> Unit,
     onToggleShowRecurringEvents: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -721,7 +729,7 @@ private fun AgendaSnapshotContent(
             onToggleTask = onToggleTask,
             onTaskClick = onTaskClick,
             onEventClick = onEventClick,
-            onToggleShowCompletedTasks = onToggleShowCompletedTasks,
+            onCycleCompletedTaskFilter = onCycleCompletedTaskFilter,
             onToggleShowRecurringEvents = onToggleShowRecurringEvents,
             modifier = modifier
         )
@@ -732,7 +740,7 @@ private fun AgendaSnapshotContent(
             onToggleTask = onToggleTask,
             onTaskClick = onTaskClick,
             onEventClick = onEventClick,
-            onToggleShowCompletedTasks = onToggleShowCompletedTasks,
+            onCycleCompletedTaskFilter = onCycleCompletedTaskFilter,
             onToggleShowRecurringEvents = onToggleShowRecurringEvents,
             modifier = modifier
         )
@@ -743,7 +751,7 @@ private fun AgendaSnapshotContent(
             onToggleTask = onToggleTask,
             onTaskClick = onTaskClick,
             onEventClick = onEventClick,
-            onToggleShowCompletedTasks = onToggleShowCompletedTasks,
+            onCycleCompletedTaskFilter = onCycleCompletedTaskFilter,
             onToggleShowRecurringEvents = onToggleShowRecurringEvents,
             modifier = modifier
         )
@@ -757,19 +765,19 @@ private fun DayAgenda(
     onToggleTask: (Task) -> Unit,
     onTaskClick: (Task) -> Unit,
     onEventClick: (CalendarEvent) -> Unit,
-    onToggleShowCompletedTasks: () -> Unit,
+    onCycleCompletedTaskFilter: () -> Unit,
     onToggleShowRecurringEvents: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     AgendaList(
         snapshot = snapshot,
-        summaryTitle = "Daily overview",
+        summaryTitle = "일일 요약",
         summaryPeriod = DayFormatter.format(snapshot.rangeStart),
         filters = filters,
         onToggleTask = onToggleTask,
         onTaskClick = onTaskClick,
         onEventClick = onEventClick,
-        onToggleShowCompletedTasks = onToggleShowCompletedTasks,
+        onCycleCompletedTaskFilter = onCycleCompletedTaskFilter,
         onToggleShowRecurringEvents = onToggleShowRecurringEvents,
         modifier = modifier
     )
@@ -782,26 +790,26 @@ private fun WeekAgenda(
     onToggleTask: (Task) -> Unit,
     onTaskClick: (Task) -> Unit,
     onEventClick: (CalendarEvent) -> Unit,
-    onToggleShowCompletedTasks: () -> Unit,
+    onCycleCompletedTaskFilter: () -> Unit,
     onToggleShowRecurringEvents: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val periodLabel = buildString {
         append(WeekFormatter.format(snapshot.rangeStart))
         snapshot.rangeEnd.takeIf { it != snapshot.rangeStart }?.let { end ->
-            append(" – ")
+            append(" ~ ")
             append(WeekFormatter.format(end))
         }
     }
     AgendaList(
         snapshot = snapshot,
-        summaryTitle = "Weekly focus",
+        summaryTitle = "주간 요약",
         summaryPeriod = periodLabel,
         filters = filters,
         onToggleTask = onToggleTask,
         onTaskClick = onTaskClick,
         onEventClick = onEventClick,
-        onToggleShowCompletedTasks = onToggleShowCompletedTasks,
+        onCycleCompletedTaskFilter = onCycleCompletedTaskFilter,
         onToggleShowRecurringEvents = onToggleShowRecurringEvents,
         modifier = modifier
     )
@@ -814,20 +822,20 @@ private fun MonthAgenda(
     onToggleTask: (Task) -> Unit,
     onTaskClick: (Task) -> Unit,
     onEventClick: (CalendarEvent) -> Unit,
-    onToggleShowCompletedTasks: () -> Unit,
+    onCycleCompletedTaskFilter: () -> Unit,
     onToggleShowRecurringEvents: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val monthLabel = MonthFormatter.format(snapshot.rangeStart)
     AgendaList(
         snapshot = snapshot,
-        summaryTitle = "Monthly outlook",
+        summaryTitle = "월간 요약",
         summaryPeriod = monthLabel,
         filters = filters,
         onToggleTask = onToggleTask,
         onTaskClick = onTaskClick,
         onEventClick = onEventClick,
-        onToggleShowCompletedTasks = onToggleShowCompletedTasks,
+        onCycleCompletedTaskFilter = onCycleCompletedTaskFilter,
         onToggleShowRecurringEvents = onToggleShowRecurringEvents,
         modifier = modifier
     )
@@ -842,15 +850,23 @@ private fun AgendaList(
     onToggleTask: (Task) -> Unit,
     onTaskClick: (Task) -> Unit,
     onEventClick: (CalendarEvent) -> Unit,
-    onToggleShowCompletedTasks: () -> Unit,
+    onCycleCompletedTaskFilter: () -> Unit,
     onToggleShowRecurringEvents: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val visibleEvents = remember(snapshot.events, filters.showRecurringEvents) {
         if (filters.showRecurringEvents) snapshot.events else snapshot.events.filter { it.recurrence == null }
     }
-    val visibleTasks = remember(snapshot.tasks, filters.showCompletedTasks) {
-        if (filters.showCompletedTasks) snapshot.tasks else snapshot.tasks.filterNot { it.status.isDone() }
+    val visibleTasks = remember(snapshot.tasks, filters.completedTaskFilter) {
+        when (filters.completedTaskFilter) {
+            CompletedTaskFilter.All -> snapshot.tasks
+            CompletedTaskFilter.HideCompleted -> snapshot.tasks.filterNot { it.status.isDone() }
+            CompletedTaskFilter.CompletedOnly -> snapshot.tasks.filter { it.status.isDone() }
+        }
+    }
+    val hiddenRecurringCount = snapshot.events.size - visibleEvents.size
+    val hiddenSummary = remember(filters, snapshot, hiddenRecurringCount) {
+        hiddenItemsSummary(filters, snapshot, hiddenRecurringCount)
     }
 
     LazyColumn(
@@ -862,25 +878,37 @@ private fun AgendaList(
             AgendaSummaryCard(
                 title = summaryTitle,
                 period = summaryPeriod,
-                snapshot = snapshot
+                snapshot = snapshot,
+                filters = filters,
+                visibleEventCount = visibleEvents.size,
+                visibleTaskCount = visibleTasks.size,
+                hiddenRecurringCount = hiddenRecurringCount
             )
         }
         item {
-            SectionTitle(text = "Events")
+            SectionTitle(text = "일정")
         }
         item {
             AgendaFilterRow(
                 filters = filters,
                 onToggleShowRecurringEvents = onToggleShowRecurringEvents,
-                onToggleShowCompletedTasks = onToggleShowCompletedTasks
+                onCycleCompletedTaskFilter = onCycleCompletedTaskFilter
             )
+        }
+        hiddenSummary?.let { message ->
+            item {
+                FilterNotice(message = message)
+            }
         }
         if (visibleEvents.isEmpty()) {
             item {
                 EmptySectionMessage(message = "표시할 일정이 없어요. 필터를 확인해 보세요.")
             }
         } else {
-            items(snapshot.events) { event ->
+            items(
+                items = visibleEvents,
+                key = { "${'$'}{it.id}-${'$'}{it.start}" }
+            ) { event ->
                 val hasConflict = snapshot.conflictingEventIds.contains(event.id)
                 EventCard(
                     event = event,
@@ -890,7 +918,7 @@ private fun AgendaList(
             }
         }
         item {
-            SectionTitle(text = "Tasks")
+            SectionTitle(text = "할 일")
         }
         if (visibleTasks.isEmpty()) {
             item {
@@ -912,7 +940,7 @@ private fun AgendaList(
 private fun AgendaFilterRow(
     filters: AgendaFilters,
     onToggleShowRecurringEvents: () -> Unit,
-    onToggleShowCompletedTasks: () -> Unit,
+    onCycleCompletedTaskFilter: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -925,9 +953,12 @@ private fun AgendaFilterRow(
             label = { Text("반복 일정 표시") }
         )
         FilterChip(
-            selected = filters.showCompletedTasks,
-            onClick = onToggleShowCompletedTasks,
-            label = { Text("완료된 할 일 표시") }
+            selected = filters.completedTaskFilter != CompletedTaskFilter.All,
+            onClick = onCycleCompletedTaskFilter,
+            label = { Text(filters.completedTaskFilter.label()) },
+            modifier = Modifier.semantics {
+                stateDescription = filters.completedTaskFilter.accessibilityDescription()
+            }
         )
     }
 }
@@ -937,16 +968,21 @@ private fun AgendaSummaryCard(
     title: String,
     period: String,
     snapshot: AgendaSnapshot,
+    filters: AgendaFilters,
+    visibleEventCount: Int,
+    visibleTaskCount: Int,
+    hiddenRecurringCount: Int,
     modifier: Modifier = Modifier
 ) {
-    val summaryDescription = buildString {
+    val hiddenSummary = hiddenItemsSummary(filters, snapshot, hiddenRecurringCount)
+    val conflictCount = snapshot.conflictingEventIds.size
+    val baseSummary = buildString {
         append(title)
         append(". ")
         append(period)
-        append(" 일정 요약. ")
-        append("등록된 일정 ")
+        append(" 일정 요약. 전체 일정 ")
         append(snapshot.events.size)
-        append("건, 대기 또는 진행 중인 할 일 ")
+        append("건, 진행 중인 할 일 ")
         append(snapshot.pendingCount)
         append("건, 완료된 할 일 ")
         append(snapshot.completedCount)
@@ -957,19 +993,21 @@ private fun AgendaSummaryCard(
             append(snapshot.overdueTasks.size)
             append("건이 있어요.")
         }
+        hiddenSummary?.let {
+            append(' ')
+            append(it)
+        }
     }
-
-    val conflictCount = snapshot.conflictingEventIds.size
     val summaryWithConflicts = if (conflictCount > 0) {
         buildString {
-            append(summaryDescription)
+            append(baseSummary)
             append(' ')
             append("시간이 겹치는 일정 ")
             append(conflictCount)
             append("건이 있어요.")
         }
     } else {
-        summaryDescription
+        baseSummary
     }
 
     Card(
@@ -989,23 +1027,35 @@ private fun AgendaSummaryCard(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "${snapshot.events.size} events",
+                text = "전체 일정 ${snapshot.events.size}건",
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
-                text = "${snapshot.pendingCount} pending · ${snapshot.completedCount} completed",
+                text = "진행 중 ${snapshot.pendingCount}건 · 완료 ${snapshot.completedCount}건",
                 style = MaterialTheme.typography.bodyMedium
             )
+            Text(
+                text = "목록에 표시 중: 일정 ${visibleEventCount}건 · 할 일 ${visibleTaskCount}건",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            hiddenSummary?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             if (snapshot.overdueTasks.isNotEmpty()) {
                 Text(
-                    text = "${snapshot.overdueTasks.size} overdue",
+                    text = "마감 지남 ${snapshot.overdueTasks.size}건",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error
                 )
             }
             if (conflictCount > 0) {
                 Text(
-                    text = "시간 충돌 ${conflictCount}건",
+                    text = "시간이 겹치는 일정 ${conflictCount}건",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error
                 )
@@ -1014,12 +1064,64 @@ private fun AgendaSummaryCard(
     }
 }
 
+private fun CompletedTaskFilter.label(): String = when (this) {
+    CompletedTaskFilter.All -> "할 일: 전체"
+    CompletedTaskFilter.HideCompleted -> "할 일: 완료 숨김"
+    CompletedTaskFilter.CompletedOnly -> "할 일: 완료만"
+}
+
+private fun CompletedTaskFilter.accessibilityDescription(): String = when (this) {
+    CompletedTaskFilter.All -> "모든 할 일을 표시합니다"
+    CompletedTaskFilter.HideCompleted -> "완료된 할 일을 숨깁니다"
+    CompletedTaskFilter.CompletedOnly -> "완료된 할 일만 표시합니다"
+}
+
+private fun hiddenItemsSummary(
+    filters: AgendaFilters,
+    snapshot: AgendaSnapshot,
+    hiddenRecurringCount: Int
+): String? {
+    val details = mutableListOf<String>()
+    if (!filters.showRecurringEvents && hiddenRecurringCount > 0) {
+        details += "반복 일정 ${hiddenRecurringCount}건"
+    }
+    when (filters.completedTaskFilter) {
+        CompletedTaskFilter.All -> Unit
+        CompletedTaskFilter.HideCompleted -> if (snapshot.completedCount > 0) {
+            details += "완료된 할 일 ${snapshot.completedCount}건"
+        }
+        CompletedTaskFilter.CompletedOnly -> if (snapshot.pendingCount > 0) {
+            details += "진행 중인 할 일 ${snapshot.pendingCount}건"
+        }
+    }
+    if (details.isEmpty()) return null
+    return "필터로 숨겨진 항목: ${details.joinToString(", ")}."
+}
+
+@Composable
+private fun FilterNotice(message: String) {
+    Text(
+        text = message,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics {
+                liveRegion = LiveRegionMode.Polite
+                contentDescription = message
+            }
+    )
+}
+
 @Composable
 private fun SectionTitle(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.semantics { role = Role.Header }
+        modifier = Modifier.semantics {
+            role = Role.Header
+            heading()
+        }
     )
 }
 
@@ -1037,9 +1139,9 @@ private fun EventCard(event: CalendarEvent, hasConflict: Boolean, onClick: () ->
 
     val description = buildString {
         append(event.title)
-        append(" event")
+        append(" 일정")
         if (hasConflict) {
-            append(", conflicting with another event")
+            append(", 다른 일정과 시간이 겹칩니다")
         }
     }
 
@@ -1125,7 +1227,7 @@ private fun SwipeableTaskRow(
             false
         }
     }
-    val actionLabel = if (task.status.isDone()) "Mark as pending" else "Mark as complete"
+    val actionLabel = if (task.status.isDone()) "다시 미완료로 표시" else "완료로 표시"
     val containerColor = if (task.status.isDone()) {
         MaterialTheme.colorScheme.tertiaryContainer
     } else {
@@ -1221,7 +1323,7 @@ private fun TaskRow(
             onCheckedChange = { onToggleTask() },
             modifier = Modifier.semantics {
                 role = Role.Checkbox
-                stateDescription = if (task.status.isDone()) "Completed" else "Not completed"
+                stateDescription = if (task.status.isDone()) "완료됨" else "미완료"
             }
         )
         Column(
@@ -1253,7 +1355,7 @@ private fun TaskRow(
             }
             task.dueAt?.let { dueAt ->
                 Text(
-                    text = "Due ${dueAt.format(DateTimeDetailFormatter)}",
+                    text = "마감 ${dueAt.format(DateTimeDetailFormatter)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1321,13 +1423,13 @@ private fun TaskDetailSheet(
         }
         task.dueAt?.let { dueAt ->
             Text(
-                text = "Due ${dueAt.format(DateTimeDetailFormatter)}",
+                text = "마감 ${dueAt.format(DateTimeDetailFormatter)}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         Text(
-            text = "Status: ${task.status.displayName()}",
+            text = "상태: ${task.status.displayName()}",
             style = MaterialTheme.typography.bodyMedium
         )
         Button(onClick = { onToggleTask(task) }) {
@@ -1338,16 +1440,16 @@ private fun TaskDetailSheet(
             horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
         ) {
             OutlinedButton(onClick = { onEditTask(task) }) {
-                Text("Edit")
+                Text("편집")
             }
             TextButton(
                 onClick = { onDeleteTask(task) },
                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
             ) {
-                Text("Delete")
+                Text("삭제")
             }
             TextButton(onClick = onClose) {
-                Text("Close")
+                Text("닫기")
             }
         }
     }
@@ -1392,16 +1494,16 @@ private fun EventDetailSheet(
             horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
         ) {
             OutlinedButton(onClick = { onEditEvent(event) }) {
-                Text("Edit")
+                Text("편집")
             }
             TextButton(
                 onClick = { onDeleteEvent(event) },
                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
             ) {
-                Text("Delete")
+                Text("삭제")
             }
             TextButton(onClick = onClose) {
-                Text("Close")
+                Text("닫기")
             }
         }
     }
@@ -1732,14 +1834,14 @@ private fun AgendaEmptyState(onQuickAddClick: () -> Unit = {}) {
 }
 
 private fun TaskStatus.displayName(): String = when (this) {
-    TaskStatus.Pending -> "Pending"
-    TaskStatus.InProgress -> "In progress"
-    TaskStatus.Completed -> "Completed"
+    TaskStatus.Pending -> "대기 중"
+    TaskStatus.InProgress -> "진행 중"
+    TaskStatus.Completed -> "완료"
 }
 
 private fun TaskStatus.toggleLabel(): String = when (this) {
-    TaskStatus.Completed -> "Mark as pending"
-    else -> "Mark as complete"
+    TaskStatus.Completed -> "대기 중으로 표시"
+    else -> "완료로 표시"
 }
 
 private fun eventTimeRange(event: CalendarEvent): String {
@@ -1748,9 +1850,9 @@ private fun eventTimeRange(event: CalendarEvent): String {
         val date = event.start.format(DayFormatter)
         val startTime = event.start.format(TimeOnlyFormatter)
         val endTime = event.end.format(TimeOnlyFormatter)
-        "$date · $startTime – $endTime"
+        "$date · $startTime ~ $endTime"
     } else {
-        "${event.start.format(DateTimeDetailFormatter)} – ${event.end.format(DateTimeDetailFormatter)}"
+        "${event.start.format(DateTimeDetailFormatter)} ~ ${event.end.format(DateTimeDetailFormatter)}"
     }
 }
 
@@ -1794,15 +1896,15 @@ private fun AgendaUserMessage.toSnackbarMessage(): String = when (this) {
 }
 
 private fun AgendaTab.displayLabel(): String = when (this) {
-    AgendaTab.Daily -> "Daily"
-    AgendaTab.Weekly -> "Weekly"
-    AgendaTab.Monthly -> "Monthly"
+    AgendaTab.Daily -> "일간"
+    AgendaTab.Weekly -> "주간"
+    AgendaTab.Monthly -> "월간"
 }
 
 private fun AgendaTab.accessibleLabel(): String = when (this) {
-    AgendaTab.Daily -> "Daily agenda tab"
-    AgendaTab.Weekly -> "Weekly agenda tab"
-    AgendaTab.Monthly -> "Monthly agenda tab"
+    AgendaTab.Daily -> "일간 아젠다 탭"
+    AgendaTab.Weekly -> "주간 아젠다 탭"
+    AgendaTab.Monthly -> "월간 아젠다 탭"
 }
 
 private fun periodLabel(period: AgendaPeriod): String = when (period) {
@@ -1810,7 +1912,7 @@ private fun periodLabel(period: AgendaPeriod): String = when (period) {
     is AgendaPeriod.Week -> {
         val start = WeekFormatter.format(period.start)
         val end = WeekFormatter.format(period.end)
-        "$start – $end"
+        "$start ~ $end"
     }
     is AgendaPeriod.Month -> MonthFormatter.format(
         YearMonth.of(period.year, period.month).atDay(1)
@@ -1830,7 +1932,7 @@ private fun AgendaScreenLoadedPreview() {
             onToggleTask = {},
             onTaskClick = {},
             onEventClick = {},
-            onToggleShowCompletedTasks = {},
+            onCycleCompletedTaskFilter = {},
             onToggleShowRecurringEvents = {},
             onWeekDaySelected = {},
             onMonthDaySelected = {},
@@ -1859,7 +1961,7 @@ private fun AgendaScreenEmptyPreview() {
             onToggleTask = {},
             onTaskClick = {},
             onEventClick = {},
-            onToggleShowCompletedTasks = {},
+            onCycleCompletedTaskFilter = {},
             onToggleShowRecurringEvents = {},
             onWeekDaySelected = {},
             onMonthDaySelected = {},
@@ -1904,7 +2006,7 @@ private val previewAgendaTasks: List<Task> = listOf(
         period = AgendaPeriod.Day(PreviewAgendaDate)
     ),
     Task(
-        title = "QA 버그 triage",
+        title = "품질 점검 버그 분류",
         status = TaskStatus.Pending,
         dueAt = LocalDateTime.of(PreviewAgendaDate, LocalTime.of(17, 0)),
         period = AgendaPeriod.Week(PreviewAgendaDate.startOfWeek())
@@ -1956,7 +2058,7 @@ private fun parseInputTime(value: String): Result<LocalTime> {
 private const val DEFAULT_TASK_TIME_TEXT = "09:00"
 private const val DEFAULT_EVENT_START_TEXT = "09:00"
 private const val DEFAULT_EVENT_END_TEXT = "10:00"
-private val QuickAddTimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("H:mm", Locale.getDefault())
+private val QuickAddTimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("H:mm", Locale.KOREAN)
 
 private fun LocalDate.startOfWeek(): LocalDate {
     var date = this
@@ -1968,11 +2070,11 @@ private fun LocalDate.startOfWeek(): LocalDate {
 
 private fun Task.accessibleDescription(): String {
     val statusText = when (status) {
-        TaskStatus.Pending -> "Pending"
-        TaskStatus.InProgress -> "In progress"
-        TaskStatus.Completed -> "Completed"
+        TaskStatus.Pending -> "대기 중"
+        TaskStatus.InProgress -> "진행 중"
+        TaskStatus.Completed -> "완료"
     }
-    return "$statusText task: $title"
+    return "$statusText 할 일: $title"
 }
 
 @Composable

@@ -30,7 +30,9 @@ class CalendarAppNotificationTest {
             CalendarTheme {
                 NotificationPermissionCard(
                     controller = controller,
-                    onDismiss = {}
+                    onDismiss = {},
+                    onRequestPermission = {},
+                    onOpenSettings = {}
                 )
             }
         }
@@ -53,7 +55,9 @@ class CalendarAppNotificationTest {
             CalendarTheme {
                 NotificationPermissionCard(
                     controller = controller,
-                    onDismiss = {}
+                    onDismiss = {},
+                    onRequestPermission = {},
+                    onOpenSettings = {}
                 )
             }
         }

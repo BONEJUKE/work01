@@ -61,6 +61,9 @@ private fun List<StoredReminder>.toJson(): String {
                 put("payloadMessage", reminder.payload.message)
                 put("payloadDeepLink", reminder.payload.deepLink)
                 put("payloadAllowSnooze", reminder.payload.allowSnooze)
+                put("payloadTaskId", reminder.payload.taskId)
+                put("payloadBaseId", reminder.payload.baseId)
+                put("payloadSnoozeMinutes", reminder.payload.snoozeMinutes)
             }
         )
     }
@@ -85,7 +88,13 @@ private fun String.fromJson(): List<StoredReminder> {
                             title = item.optString("payloadTitle"),
                             message = item.optString("payloadMessage"),
                             deepLink = item.optString("payloadDeepLink"),
-                            allowSnooze = item.optBoolean("payloadAllowSnooze", false)
+                            allowSnooze = item.optBoolean("payloadAllowSnooze", false),
+                            taskId = item.optString("payloadTaskId").takeIf { it.isNotBlank() },
+                            baseId = item.optString("payloadBaseId"),
+                            snoozeMinutes = item.optLong(
+                                "payloadSnoozeMinutes",
+                                ReminderPayload.DEFAULT_SNOOZE_MINUTES
+                            )
                         )
                     )
                 )

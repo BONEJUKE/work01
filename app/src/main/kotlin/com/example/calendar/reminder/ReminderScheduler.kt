@@ -21,5 +21,12 @@ data class ReminderPayload(
     val title: String,
     val message: String,
     val deepLink: String,
-    val allowSnooze: Boolean
-)
+    val allowSnooze: Boolean,
+    val taskId: String? = null,
+    val baseId: String,
+    val snoozeMinutes: Long = DEFAULT_SNOOZE_MINUTES
+) {
+    companion object {
+        const val DEFAULT_SNOOZE_MINUTES: Long = 10
+    }
+}

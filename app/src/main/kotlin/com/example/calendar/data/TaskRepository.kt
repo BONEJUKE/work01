@@ -11,5 +11,6 @@ interface TaskRepository {
 
     suspend fun upsert(task: Task)
     suspend fun toggleStatus(id: UUID)
+    suspend fun markComplete(id: UUID)
     suspend fun delete(id: UUID)
 }

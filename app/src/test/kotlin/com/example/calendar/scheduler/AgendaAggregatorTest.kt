@@ -4,6 +4,7 @@ import com.example.calendar.data.AgendaPeriod
 import com.example.calendar.data.CalendarEvent
 import com.example.calendar.data.EventRepository
 import com.example.calendar.data.Recurrence
+import com.example.calendar.data.RecurrenceException
 import com.example.calendar.data.RecurrenceRule
 import com.example.calendar.data.Task
 import com.example.calendar.data.TaskRepository
@@ -174,6 +175,48 @@ class AgendaAggregatorTest {
         assertTrue(separate.id !in snapshot.conflictingEventIds)
     }
 
+    @Test
+    fun `expands recurring events while applying exceptions`() = runBlocking {
+        val weekStart = LocalDate.of(2024, 5, 6)
+        val baseEvent = CalendarEvent(
+            title = "아침 운동",
+            start = LocalDateTime.of(2024, 5, 6, 7, 0),
+            end = LocalDateTime.of(2024, 5, 6, 8, 0),
+            recurrence = Recurrence(
+                rule = RecurrenceRule.Daily,
+                interval = 1,
+                occurrences = 5
+            ),
+            recurrenceExceptions = listOf(
+                RecurrenceException(
+                    originalStart = LocalDateTime.of(2024, 5, 7, 7, 0),
+                    isCancelled = true
+                ),
+                RecurrenceException(
+                    originalStart = LocalDateTime.of(2024, 5, 8, 7, 0),
+                    overrideStart = LocalDateTime.of(2024, 5, 8, 9, 0),
+                    overrideEnd = LocalDateTime.of(2024, 5, 8, 10, 0),
+                    overrideTitle = "병원 검진"
+                )
+            )
+        )
+        val aggregator = AgendaAggregator(
+            taskRepository = FakeTaskRepository(),
+            eventRepository = FakeEventRepository(
+                rangeEvents = mapOf((weekStart to weekStart.plusDays(6)) to listOf(baseEvent))
+            )
+        )
+
+        val snapshot = aggregator.observeAgenda(AgendaPeriod.Week(weekStart)).first()
+
+        assertEquals(4, snapshot.events.size)
+        val occurrences = snapshot.events.sortedBy { it.start }
+        assertEquals(LocalDateTime.of(2024, 5, 6, 7, 0), occurrences[0].start)
+        assertEquals(LocalDateTime.of(2024, 5, 8, 9, 0), occurrences[1].start)
+        assertEquals("병원 검진", occurrences[1].title)
+        assertTrue(occurrences.none { it.start == LocalDateTime.of(2024, 5, 7, 7, 0) })
+    }
+
     private class FakeTaskRepository(
         private val dayTasks: Map<LocalDate, List<Task>> = emptyMap(),
         private val weekTasks: Map<LocalDate, List<Task>> = emptyMap(),
@@ -190,6 +233,7 @@ class AgendaAggregatorTest {
 
         override suspend fun upsert(task: Task) = throw UnsupportedOperationException()
         override suspend fun toggleStatus(id: java.util.UUID) = throw UnsupportedOperationException()
+        override suspend fun markComplete(id: java.util.UUID) = throw UnsupportedOperationException()
         override suspend fun delete(id: java.util.UUID) = throw UnsupportedOperationException()
     }
 

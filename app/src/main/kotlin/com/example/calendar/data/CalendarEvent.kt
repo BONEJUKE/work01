@@ -15,10 +15,32 @@ data class CalendarEvent(
     val end: LocalDateTime,
     val location: String? = null,
     val reminders: List<Reminder> = emptyList(),
-    val recurrence: Recurrence? = null
+    val recurrence: Recurrence? = null,
+    val recurrenceExceptions: List<RecurrenceException> = emptyList()
 ) {
     init {
         require(!end.isBefore(start)) { "Event end time must be after start time" }
+    }
+
+    internal fun applyOverride(
+        override: RecurrenceException,
+        fallbackStart: LocalDateTime,
+        fallbackEnd: LocalDateTime
+    ): CalendarEvent? {
+        if (override.isCancelled) return null
+
+        val newStart = override.overrideStart ?: fallbackStart
+        val newEnd = override.overrideEnd ?: fallbackEnd
+
+        return copy(
+            start = newStart,
+            end = newEnd,
+            title = override.overrideTitle ?: title,
+            description = override.overrideDescription ?: description,
+            location = override.overrideLocation ?: location,
+            recurrence = override.nextRecurrenceOverride ?: recurrence,
+            recurrenceExceptions = recurrenceExceptions
+        )
     }
 }
 
@@ -33,4 +55,32 @@ enum class RecurrenceRule {
     Weekly,
     Monthly,
     Yearly
+}
+
+data class RecurrenceException(
+    val originalStart: LocalDateTime,
+    val isCancelled: Boolean = false,
+    val overrideStart: LocalDateTime? = null,
+    val overrideEnd: LocalDateTime? = null,
+    val overrideTitle: String? = null,
+    val overrideDescription: String? = null,
+    val overrideLocation: String? = null,
+    val nextRecurrenceOverride: Recurrence? = null
+) {
+    init {
+        if (isCancelled) {
+            require(overrideStart == null && overrideEnd == null && overrideTitle == null &&
+                overrideDescription == null && overrideLocation == null && nextRecurrenceOverride == null
+            ) {
+                "Cancelled instances cannot provide override values"
+            }
+        }
+        if (overrideStart != null && overrideEnd != null) {
+            require(!overrideEnd.isBefore(overrideStart)) {
+                "Override end must be after override start"
+            }
+        }
+    }
+
+    fun matches(occurrenceStart: LocalDateTime): Boolean = occurrenceStart == originalStart
 }

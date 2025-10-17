@@ -19,6 +19,9 @@ class ReminderReceiver : BroadcastReceiver() {
         val message = intent.getStringExtra(EXTRA_MESSAGE).orEmpty()
         val deepLink = intent.getStringExtra(EXTRA_DEEP_LINK).orEmpty()
         val allowSnooze = intent.getBooleanExtra(EXTRA_ALLOW_SNOOZE, false)
+        val taskId = intent.getStringExtra(EXTRA_TASK_ID)
+        val baseId = intent.getStringExtra(EXTRA_BASE_ID) ?: reminderId
+        val snoozeMinutes = intent.getLongExtra(EXTRA_SNOOZE_MINUTES, ReminderPayload.DEFAULT_SNOOZE_MINUTES)
 
         val workRequest = OneTimeWorkRequestBuilder<ReminderNotificationWorker>()
             .setInputData(
@@ -28,7 +31,10 @@ class ReminderReceiver : BroadcastReceiver() {
                         title = title,
                         message = message,
                         deepLink = deepLink,
-                        allowSnooze = allowSnooze
+                        allowSnooze = allowSnooze,
+                        taskId = taskId,
+                        baseId = baseId,
+                        snoozeMinutes = snoozeMinutes
                     )
                 )
             )
@@ -51,6 +57,9 @@ class ReminderReceiver : BroadcastReceiver() {
         private const val EXTRA_MESSAGE = "extra_message"
         private const val EXTRA_DEEP_LINK = "extra_deep_link"
         private const val EXTRA_ALLOW_SNOOZE = "extra_allow_snooze"
+        private const val EXTRA_TASK_ID = "extra_task_id"
+        private const val EXTRA_BASE_ID = "extra_base_id"
+        private const val EXTRA_SNOOZE_MINUTES = "extra_snooze_minutes"
 
         fun createPendingIntent(
             context: Context,
@@ -69,6 +78,9 @@ class ReminderReceiver : BroadcastReceiver() {
                     putExtra(EXTRA_MESSAGE, payload.message)
                     putExtra(EXTRA_DEEP_LINK, payload.deepLink)
                     putExtra(EXTRA_ALLOW_SNOOZE, payload.allowSnooze)
+                    putExtra(EXTRA_TASK_ID, payload.taskId)
+                    putExtra(EXTRA_BASE_ID, payload.baseId)
+                    putExtra(EXTRA_SNOOZE_MINUTES, payload.snoozeMinutes)
                 }
             }
         )

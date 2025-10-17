@@ -5,6 +5,9 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
+import org.json.JSONArray
+import org.json.JSONException
+import org.json.JSONObject
 
 class CalendarTypeConverters {
     private val dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE
@@ -105,5 +108,57 @@ class CalendarTypeConverters {
         val interval = parts.getOrNull(1)?.toIntOrNull() ?: 1
         val occurrences = parts.getOrNull(2)?.takeIf { it.isNotBlank() }?.toIntOrNull()
         return Recurrence(rule = rule, interval = interval, occurrences = occurrences)
+    }
+
+    @TypeConverter
+    fun fromRecurrenceExceptions(value: List<RecurrenceException>?): String? {
+        if (value.isNullOrEmpty()) return null
+        val array = JSONArray()
+        value.forEach { exception ->
+            array.put(
+                JSONObject().apply {
+                    put("originalStart", exception.originalStart.format(dateTimeFormatter))
+                    put("isCancelled", exception.isCancelled)
+                    put("overrideStart", exception.overrideStart?.format(dateTimeFormatter))
+                    put("overrideEnd", exception.overrideEnd?.format(dateTimeFormatter))
+                    put("overrideTitle", exception.overrideTitle)
+                    put("overrideDescription", exception.overrideDescription)
+                    put("overrideLocation", exception.overrideLocation)
+                    put("overrideRecurrence", fromRecurrence(exception.nextRecurrenceOverride))
+                }
+            )
+        }
+        return array.toString()
+    }
+
+    @TypeConverter
+    fun toRecurrenceExceptions(value: String?): List<RecurrenceException> {
+        if (value.isNullOrBlank()) return emptyList()
+        return try {
+            val array = JSONArray(value)
+            buildList {
+                for (index in 0 until array.length()) {
+                    val item = array.getJSONObject(index)
+                    val originalStart = item.getString("originalStart")
+                    val overrideStart = item.optString("overrideStart").takeIf { it.isNotBlank() }
+                    val overrideEnd = item.optString("overrideEnd").takeIf { it.isNotBlank() }
+                    val recurrence = item.optString("overrideRecurrence").takeIf { it.isNotBlank() }
+                    add(
+                        RecurrenceException(
+                            originalStart = LocalDateTime.parse(originalStart, dateTimeFormatter),
+                            isCancelled = item.optBoolean("isCancelled", false),
+                            overrideStart = overrideStart?.let { LocalDateTime.parse(it, dateTimeFormatter) },
+                            overrideEnd = overrideEnd?.let { LocalDateTime.parse(it, dateTimeFormatter) },
+                            overrideTitle = item.optString("overrideTitle").takeIf { it.isNotBlank() },
+                            overrideDescription = item.optString("overrideDescription").takeIf { it.isNotBlank() },
+                            overrideLocation = item.optString("overrideLocation").takeIf { it.isNotBlank() },
+                            nextRecurrenceOverride = recurrence?.let(::toRecurrence)
+                        )
+                    )
+                }
+            }
+        } catch (_: JSONException) {
+            emptyList()
+        }
     }
 }

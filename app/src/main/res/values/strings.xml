@@ -1,3 +1,5 @@
 <resources>
-    <string name="app_name">Work01 Calendar</string>
+    <string name="app_name">워크01 캘린더</string>
+    <string name="reminder_action_complete">완료</string>
+    <string name="reminder_action_snooze">다시 알림</string>
 </resources>
