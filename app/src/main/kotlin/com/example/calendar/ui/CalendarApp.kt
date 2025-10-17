@@ -20,10 +20,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -44,8 +47,11 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import com.example.calendar.data.CalendarEvent
 import com.example.calendar.data.Task
 import com.example.calendar.ui.agenda.AgendaRoute
+import com.example.calendar.ui.agenda.EventEditSheet
+import com.example.calendar.ui.agenda.TaskEditSheet
 import com.example.calendar.ui.theme.CalendarTheme
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CalendarApp(
     viewModel: AgendaViewModel,
@@ -68,6 +74,9 @@ fun CalendarApp(
                 promptTracker.clearSuppression()
             }
         }
+
+        var editingTask by remember { mutableStateOf<Task?>(null) }
+        var editingEvent by remember { mutableStateOf<CalendarEvent?>(null) }
 
         val notificationCard: (@Composable () -> Unit)? = if (
             permissionController.shouldShowPrompt &&
@@ -101,8 +110,45 @@ fun CalendarApp(
             viewModel = viewModel,
             onEventClick = onEventClick,
             onTaskClick = onTaskClick,
+            onEventEdit = { event -> editingEvent = event },
+            onTaskEdit = { task -> editingTask = task },
             notificationPermissionCard = notificationCard
         )
+
+        val taskToEdit = editingTask
+        val eventToEdit = editingEvent
+
+        if (taskToEdit != null) {
+            val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            ModalBottomSheet(
+                onDismissRequest = { editingTask = null },
+                sheetState = sheetState
+            ) {
+                TaskEditSheet(
+                    task = taskToEdit,
+                    onSaveTask = { title, notes, dueAt ->
+                        viewModel.updateTask(taskToEdit, title, notes, dueAt)
+                    },
+                    onSaved = { editingTask = null },
+                    onClose = { editingTask = null }
+                )
+            }
+        } else if (eventToEdit != null) {
+            val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            ModalBottomSheet(
+                onDismissRequest = { editingEvent = null },
+                sheetState = sheetState
+            ) {
+                EventEditSheet(
+                    event = eventToEdit,
+                    onSaveEvent = { title, description, location, start, end ->
+                        viewModel.updateEvent(eventToEdit, title, description, location, start, end)
+                    },
+                    onSaved = { editingEvent = null },
+                    onClose = { editingEvent = null }
+                )
+            }
+        }
     }
 }
 
