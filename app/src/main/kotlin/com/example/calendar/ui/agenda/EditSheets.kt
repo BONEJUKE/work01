@@ -52,31 +52,31 @@ fun TaskEditSheet(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "할 일 편집",
+            text = AgendaText.TaskEdit.title,
             style = MaterialTheme.typography.titleLarge
         )
         OutlinedTextField(
             value = title,
             onValueChange = { title = it },
-            label = { Text("제목") },
+            label = { Text(AgendaText.Common.titleLabel) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
         OutlinedTextField(
             value = notes,
             onValueChange = { notes = it },
-            label = { Text("메모 (선택)") },
+            label = { Text(AgendaText.Common.notesOptionalLabel) },
             modifier = Modifier.fillMaxWidth()
         )
         OutlinedTextField(
             value = dueDateText,
             onValueChange = { dueDateText = it },
-            label = { Text("마감 날짜 (YYYY-MM-DD)") },
+            label = { Text(AgendaText.TaskEdit.dueDateLabel) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             supportingText = {
                 Text(
-                    text = "비워 두면 날짜 없이 저장됩니다.",
+                    text = AgendaText.TaskEdit.dueDateHint,
                     style = MaterialTheme.typography.bodySmall
                 )
             }
@@ -84,12 +84,12 @@ fun TaskEditSheet(
         OutlinedTextField(
             value = dueTimeText,
             onValueChange = { dueTimeText = it },
-            label = { Text("마감 시간 (HH:mm)") },
+            label = { Text(AgendaText.TaskEdit.dueTimeLabel) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             supportingText = {
                 Text(
-                    text = "날짜 또는 시간을 비워 두면 마감 시간이 제거됩니다.",
+                    text = AgendaText.TaskEdit.dueTimeHint,
                     style = MaterialTheme.typography.bodySmall
                 )
             }
@@ -108,14 +108,14 @@ fun TaskEditSheet(
             horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
         ) {
             TextButton(onClick = { if (!isSaving) onClose() }) {
-                Text("취소")
+                Text(AgendaText.Common.cancel)
             }
             Button(
                 onClick = {
                     if (isSaving) return@Button
                     val normalizedTitle = title.trim()
                     if (normalizedTitle.isEmpty()) {
-                        errorMessage = "제목을 입력해 주세요."
+                        errorMessage = AgendaText.Common.titleRequired
                         return@Button
                     }
                     val normalizedNotes = notes.trim().takeIf { it.isNotEmpty() }
@@ -126,21 +126,21 @@ fun TaskEditSheet(
                         null
                     } else {
                         if (dateText.isEmpty()) {
-                            errorMessage = "마감 날짜를 YYYY-MM-DD 형식으로 입력해 주세요."
+                            errorMessage = AgendaText.TaskEdit.dueDateRequired
                             return@Button
                         }
                         val dateResult = runCatching { LocalDate.parse(dateText) }
                         if (dateResult.isFailure) {
-                            errorMessage = "마감 날짜는 YYYY-MM-DD 형식이어야 해요."
+                            errorMessage = AgendaText.TaskEdit.dueDateFormatError
                             return@Button
                         }
                         if (timeText.isEmpty()) {
-                            errorMessage = "마감 시간을 HH:mm 형식으로 입력해 주세요."
+                            errorMessage = AgendaText.TaskEdit.dueTimeRequired
                             return@Button
                         }
                         val timeResult = parseInputTime(timeText)
                         if (timeResult.isFailure) {
-                            errorMessage = "마감 시간은 HH:mm 형식이어야 해요."
+                            errorMessage = AgendaText.TaskEdit.dueTimeFormatError
                             return@Button
                         }
                         LocalDateTime.of(dateResult.getOrThrow(), timeResult.getOrThrow())
@@ -153,14 +153,14 @@ fun TaskEditSheet(
                         if (result.isSuccess) {
                             onSaved(result.getOrThrow())
                         } else {
-                            errorMessage = result.exceptionOrNull()?.message ?: "저장에 실패했습니다."
+                            errorMessage = result.exceptionOrNull()?.message ?: AgendaText.Common.saveFailed
                         }
                         isSaving = false
                     }
                 },
                 enabled = !isSaving
             ) {
-                Text(if (isSaving) "저장 중..." else "저장")
+                Text(if (isSaving) AgendaText.Common.saving else AgendaText.Common.save)
             }
         }
     }
@@ -200,32 +200,32 @@ fun EventEditSheet(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "일정 편집",
+            text = AgendaText.EventEdit.title,
             style = MaterialTheme.typography.titleLarge
         )
         OutlinedTextField(
             value = title,
             onValueChange = { title = it },
-            label = { Text("제목") },
+            label = { Text(AgendaText.Common.titleLabel) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
         OutlinedTextField(
             value = location,
             onValueChange = { location = it },
-            label = { Text("위치 (선택)") },
+            label = { Text(AgendaText.Common.locationOptionalLabel) },
             modifier = Modifier.fillMaxWidth()
         )
         OutlinedTextField(
             value = notes,
             onValueChange = { notes = it },
-            label = { Text("메모 (선택)") },
+            label = { Text(AgendaText.Common.notesOptionalLabel) },
             modifier = Modifier.fillMaxWidth()
         )
         OutlinedTextField(
             value = dateText,
             onValueChange = { dateText = it },
-            label = { Text("날짜 (YYYY-MM-DD)") },
+            label = { Text(AgendaText.EventEdit.dateLabel) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
@@ -235,14 +235,14 @@ fun EventEditSheet(
             OutlinedTextField(
                 value = startTimeText,
                 onValueChange = { startTimeText = it },
-                label = { Text("시작 시간 (HH:mm)") },
+                label = { Text(AgendaText.EventEdit.startTimeLabel) },
                 singleLine = true,
                 modifier = Modifier.weight(1f)
             )
             OutlinedTextField(
                 value = endTimeText,
                 onValueChange = { endTimeText = it },
-                label = { Text("종료 시간 (HH:mm)") },
+                label = { Text(AgendaText.EventEdit.endTimeLabel) },
                 singleLine = true,
                 modifier = Modifier.weight(1f)
             )
@@ -261,31 +261,31 @@ fun EventEditSheet(
             horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
         ) {
             TextButton(onClick = { if (!isSaving) onClose() }) {
-                Text("취소")
+                Text(AgendaText.Common.cancel)
             }
             Button(
                 onClick = {
                     if (isSaving) return@Button
                     val normalizedTitle = title.trim()
                     if (normalizedTitle.isEmpty()) {
-                        errorMessage = "제목을 입력해 주세요."
+                        errorMessage = AgendaText.Common.titleRequired
                         return@Button
                     }
                     val normalizedLocation = location.trim().takeIf { it.isNotEmpty() }
                     val normalizedNotes = notes.trim().takeIf { it.isNotEmpty() }
                     val parsedDate = runCatching { LocalDate.parse(dateText.trim()) }
                     if (parsedDate.isFailure) {
-                        errorMessage = "날짜는 YYYY-MM-DD 형식이어야 해요."
+                        errorMessage = AgendaText.EventEdit.dateFormatError
                         return@Button
                     }
                     val startResult = parseInputTime(startTimeText.trim())
                     if (startResult.isFailure) {
-                        errorMessage = "시작 시간은 HH:mm 형식이어야 해요."
+                        errorMessage = AgendaText.EventEdit.startTimeFormatError
                         return@Button
                     }
                     val endResult = parseInputTime(endTimeText.trim())
                     if (endResult.isFailure) {
-                        errorMessage = "종료 시간은 HH:mm 형식이어야 해요."
+                        errorMessage = AgendaText.EventEdit.endTimeFormatError
                         return@Button
                     }
 
@@ -293,7 +293,7 @@ fun EventEditSheet(
                     val startDateTime = LocalDateTime.of(date, startResult.getOrThrow())
                     val endDateTime = LocalDateTime.of(date, endResult.getOrThrow())
                     if (endDateTime.isBefore(startDateTime)) {
-                        errorMessage = "종료 시간은 시작 시간 이후여야 합니다."
+                        errorMessage = AgendaText.EventEdit.endTimeBeforeStart
                         return@Button
                     }
 
@@ -310,14 +310,14 @@ fun EventEditSheet(
                         if (result.isSuccess) {
                             onSaved(result.getOrThrow())
                         } else {
-                            errorMessage = result.exceptionOrNull()?.message ?: "저장에 실패했습니다."
+                            errorMessage = result.exceptionOrNull()?.message ?: AgendaText.Common.saveFailed
                         }
                         isSaving = false
                     }
                 },
                 enabled = !isSaving
             ) {
-                Text(if (isSaving) "저장 중..." else "저장")
+                Text(if (isSaving) AgendaText.Common.saving else AgendaText.Common.save)
             }
         }
     }

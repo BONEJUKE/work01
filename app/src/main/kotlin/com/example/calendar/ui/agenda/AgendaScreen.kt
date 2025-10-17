@@ -456,15 +456,15 @@ private fun AgendaFab(onClick: () -> Unit) {
     FloatingActionButton(onClick = onClick) {
         Icon(
             imageVector = Icons.Filled.Add,
-            contentDescription = "새 일정 또는 할 일 추가"
+            contentDescription = AgendaText.Agenda.fabDescription
         )
     }
 }
 
 private fun periodSummary(period: AgendaPeriod): String = when (period) {
-    is AgendaPeriod.Day -> "하루"
-    is AgendaPeriod.Week -> "한 주"
-    is AgendaPeriod.Month -> "한 달"
+    is AgendaPeriod.Day -> AgendaText.Period.day
+    is AgendaPeriod.Week -> AgendaText.Period.week
+    is AgendaPeriod.Month -> AgendaText.Period.month
 }
 
 @Composable
@@ -512,7 +512,11 @@ private fun AgendaTabRow(
                 modifier = Modifier.semantics {
                     contentDescription = tab.accessibleLabel()
                     role = Role.Tab
-                    stateDescription = if (isSelected) "선택됨" else "선택되지 않음"
+                    stateDescription = if (isSelected) {
+                        AgendaText.Accessibility.selected
+                    } else {
+                        AgendaText.Accessibility.notSelected
+                    }
                 }
             ) {
                 Text(
@@ -678,7 +682,11 @@ private fun MonthDayCell(
                 role = Role.Button
                 contentDescription = date.format(DayFormatter)
                 selected = isSelected
-                stateDescription = if (isSelected) "선택됨" else "선택되지 않음"
+                stateDescription = if (isSelected) {
+                    AgendaText.Accessibility.selected
+                } else {
+                    AgendaText.Accessibility.notSelected
+                }
             }
             .padding(vertical = 12.dp),
         contentAlignment = Alignment.Center
@@ -701,13 +709,13 @@ private fun PeriodControls(
         IconButton(onClick = onPreviousPeriod) {
             Icon(
                 imageVector = Icons.Filled.ChevronLeft,
-                contentDescription = "이전 기간으로 이동"
+                contentDescription = AgendaText.Accessibility.previousPeriod
             )
         }
         IconButton(onClick = onNextPeriod) {
             Icon(
                 imageVector = Icons.Filled.ChevronRight,
-                contentDescription = "다음 기간으로 이동"
+                contentDescription = AgendaText.Accessibility.nextPeriod
             )
         }
     }
@@ -774,7 +782,7 @@ private fun DayAgenda(
 ) {
     AgendaList(
         snapshot = snapshot,
-        summaryTitle = "일일 요약",
+        summaryTitle = AgendaText.Agenda.summaryDailyTitle,
         summaryPeriod = DayFormatter.format(snapshot.rangeStart),
         filters = filters,
         onToggleTask = onToggleTask,
@@ -806,7 +814,7 @@ private fun WeekAgenda(
     }
     AgendaList(
         snapshot = snapshot,
-        summaryTitle = "주간 요약",
+        summaryTitle = AgendaText.Agenda.summaryWeeklyTitle,
         summaryPeriod = periodLabel,
         filters = filters,
         onToggleTask = onToggleTask,
@@ -832,7 +840,7 @@ private fun MonthAgenda(
     val monthLabel = MonthFormatter.format(snapshot.rangeStart)
     AgendaList(
         snapshot = snapshot,
-        summaryTitle = "월간 요약",
+        summaryTitle = AgendaText.Agenda.summaryMonthlyTitle,
         summaryPeriod = monthLabel,
         filters = filters,
         onToggleTask = onToggleTask,
@@ -889,7 +897,7 @@ private fun AgendaList(
             )
         }
         item {
-            SectionTitle(text = "일정")
+            SectionTitle(text = AgendaText.Agenda.eventsSectionTitle)
         }
         item {
             AgendaFilterRow(
@@ -905,7 +913,7 @@ private fun AgendaList(
         }
         if (visibleEvents.isEmpty()) {
             item {
-                EmptySectionMessage(message = "표시할 일정이 없어요. 필터를 확인해 보세요.")
+                EmptySectionMessage(message = AgendaText.Agenda.noEvents)
             }
         } else {
             items(
@@ -921,11 +929,11 @@ private fun AgendaList(
             }
         }
         item {
-            SectionTitle(text = "할 일")
+            SectionTitle(text = AgendaText.Agenda.tasksSectionTitle)
         }
         if (visibleTasks.isEmpty()) {
             item {
-                EmptySectionMessage(message = "표시할 할 일이 없어요. 필터를 확인해 보세요.")
+                EmptySectionMessage(message = AgendaText.Agenda.noTasks)
             }
         } else {
             items(visibleTasks, key = { it.id }) { task ->
@@ -953,7 +961,7 @@ private fun AgendaFilterRow(
         FilterChip(
             selected = filters.showRecurringEvents,
             onClick = onToggleShowRecurringEvents,
-            label = { Text("반복 일정 표시") }
+            label = { Text(AgendaText.Agenda.showRecurring) }
         )
         FilterChip(
             selected = filters.completedTaskFilter != CompletedTaskFilter.All,
@@ -980,21 +988,18 @@ private fun AgendaSummaryCard(
     val hiddenSummary = hiddenItemsSummary(filters, snapshot, hiddenRecurringCount)
     val conflictCount = snapshot.conflictingEventIds.size
     val baseSummary = buildString {
-        append(title)
-        append(". ")
-        append(period)
-        append(" 일정 요약. 전체 일정 ")
-        append(snapshot.events.size)
-        append("건, 진행 중인 할 일 ")
-        append(snapshot.pendingCount)
-        append("건, 완료된 할 일 ")
-        append(snapshot.completedCount)
-        append("건입니다.")
+        append(AgendaText.Agenda.summaryIntro(title, period))
+        append(' ')
+        append(
+            AgendaText.Agenda.summaryTotals(
+                snapshot.events.size,
+                snapshot.pendingCount,
+                snapshot.completedCount
+            )
+        )
         if (snapshot.overdueTasks.isNotEmpty()) {
             append(' ')
-            append("마감이 지난 할 일 ")
-            append(snapshot.overdueTasks.size)
-            append("건이 있어요.")
+            append(AgendaText.Agenda.summaryOverdueDetail(snapshot.overdueTasks.size))
         }
         hiddenSummary?.let {
             append(' ')
@@ -1005,9 +1010,7 @@ private fun AgendaSummaryCard(
         buildString {
             append(baseSummary)
             append(' ')
-            append("시간이 겹치는 일정 ")
-            append(conflictCount)
-            append("건이 있어요.")
+            append(AgendaText.Agenda.summaryConflictDetail(conflictCount))
         }
     } else {
         baseSummary
@@ -1030,15 +1033,15 @@ private fun AgendaSummaryCard(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "전체 일정 ${snapshot.events.size}건",
+                text = AgendaText.Agenda.totalEvents(snapshot.events.size),
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
-                text = "진행 중 ${snapshot.pendingCount}건 · 완료 ${snapshot.completedCount}건",
+                text = AgendaText.Agenda.progressSummary(snapshot.pendingCount, snapshot.completedCount),
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
-                text = "목록에 표시 중: 일정 ${visibleEventCount}건 · 할 일 ${visibleTaskCount}건",
+                text = AgendaText.Agenda.visibleSummary(visibleEventCount, visibleTaskCount),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -1051,14 +1054,14 @@ private fun AgendaSummaryCard(
             }
             if (snapshot.overdueTasks.isNotEmpty()) {
                 Text(
-                    text = "마감 지남 ${snapshot.overdueTasks.size}건",
+                    text = AgendaText.Agenda.overdueSummary(snapshot.overdueTasks.size),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error
                 )
             }
             if (conflictCount > 0) {
                 Text(
-                    text = "시간이 겹치는 일정 ${conflictCount}건",
+                    text = AgendaText.Agenda.conflictSummary(conflictCount),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error
                 )
@@ -1068,15 +1071,15 @@ private fun AgendaSummaryCard(
 }
 
 private fun CompletedTaskFilter.label(): String = when (this) {
-    CompletedTaskFilter.All -> "할 일: 전체"
-    CompletedTaskFilter.HideCompleted -> "할 일: 완료 숨김"
-    CompletedTaskFilter.CompletedOnly -> "할 일: 완료만"
+    CompletedTaskFilter.All -> AgendaText.Agenda.filterAllTasks
+    CompletedTaskFilter.HideCompleted -> AgendaText.Agenda.filterHideCompleted
+    CompletedTaskFilter.CompletedOnly -> AgendaText.Agenda.filterCompletedOnly
 }
 
 private fun CompletedTaskFilter.accessibilityDescription(): String = when (this) {
-    CompletedTaskFilter.All -> "모든 할 일을 표시합니다"
-    CompletedTaskFilter.HideCompleted -> "완료된 할 일을 숨깁니다"
-    CompletedTaskFilter.CompletedOnly -> "완료된 할 일만 표시합니다"
+    CompletedTaskFilter.All -> AgendaText.Agenda.filterAllTasksDescription
+    CompletedTaskFilter.HideCompleted -> AgendaText.Agenda.filterHideCompletedDescription
+    CompletedTaskFilter.CompletedOnly -> AgendaText.Agenda.filterCompletedOnlyDescription
 }
 
 private fun hiddenItemsSummary(
@@ -1086,19 +1089,19 @@ private fun hiddenItemsSummary(
 ): String? {
     val details = mutableListOf<String>()
     if (!filters.showRecurringEvents && hiddenRecurringCount > 0) {
-        details += "반복 일정 ${hiddenRecurringCount}건"
+        details += AgendaText.Agenda.hiddenRecurring(hiddenRecurringCount)
     }
     when (filters.completedTaskFilter) {
         CompletedTaskFilter.All -> Unit
         CompletedTaskFilter.HideCompleted -> if (snapshot.completedCount > 0) {
-            details += "완료된 할 일 ${snapshot.completedCount}건"
+            details += AgendaText.Agenda.hiddenCompletedTask(snapshot.completedCount)
         }
         CompletedTaskFilter.CompletedOnly -> if (snapshot.pendingCount > 0) {
-            details += "진행 중인 할 일 ${snapshot.pendingCount}건"
+            details += AgendaText.Agenda.hiddenPendingTask(snapshot.pendingCount)
         }
     }
     if (details.isEmpty()) return null
-    return "필터로 숨겨진 항목: ${details.joinToString(", ")}."
+    return AgendaText.Agenda.hiddenItems(details.joinToString(", "))
 }
 
 @Composable
@@ -1140,13 +1143,7 @@ private fun EventCard(event: CalendarEvent, hasConflict: Boolean, onClick: () ->
         CardDefaults.cardColors()
     }
 
-    val description = buildString {
-        append(event.title)
-        append(" 일정")
-        if (hasConflict) {
-            append(", 다른 일정과 시간이 겹칩니다")
-        }
-    }
+    val description = AgendaText.Agenda.conflictDescription(event.title, hasConflict)
 
     Card(
         modifier = Modifier
@@ -1169,7 +1166,7 @@ private fun EventCard(event: CalendarEvent, hasConflict: Boolean, onClick: () ->
                         contentDescription = null
                     )
                     Text(
-                        text = "다른 일정과 시간이 겹쳐요",
+                        text = AgendaText.Agenda.conflictBanner,
                         style = MaterialTheme.typography.labelMedium
                     )
                 }
@@ -1230,7 +1227,11 @@ private fun SwipeableTaskRow(
             false
         }
     }
-    val actionLabel = if (task.status.isDone()) "다시 미완료로 표시" else "완료로 표시"
+    val actionLabel = if (task.status.isDone()) {
+        AgendaText.Agenda.markAsIncomplete
+    } else {
+        AgendaText.Agenda.markAsComplete
+    }
     val containerColor = if (task.status.isDone()) {
         MaterialTheme.colorScheme.tertiaryContainer
     } else {
@@ -1326,7 +1327,11 @@ private fun TaskRow(
             onCheckedChange = { onToggleTask() },
             modifier = Modifier.semantics {
                 role = Role.Checkbox
-                stateDescription = if (task.status.isDone()) "완료됨" else "미완료"
+                stateDescription = if (task.status.isDone()) {
+                    AgendaText.Agenda.statusCompletedDesc
+                } else {
+                    AgendaText.Agenda.statusPendingDesc
+                }
             }
         )
         Column(
@@ -1358,7 +1363,7 @@ private fun TaskRow(
             }
             task.dueAt?.let { dueAt ->
                 Text(
-                    text = "마감 ${dueAt.format(DateTimeDetailFormatter)}",
+                    text = AgendaText.Agenda.dueLabel(dueAt.format(DateTimeDetailFormatter)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1426,13 +1431,13 @@ private fun TaskDetailSheet(
         }
         task.dueAt?.let { dueAt ->
             Text(
-                text = "마감 ${dueAt.format(DateTimeDetailFormatter)}",
+                text = AgendaText.Agenda.dueLabel(dueAt.format(DateTimeDetailFormatter)),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         Text(
-            text = "상태: ${task.status.displayName()}",
+            text = AgendaText.Agenda.statusLabel(task.status.displayName()),
             style = MaterialTheme.typography.bodyMedium
         )
         Button(onClick = { onToggleTask(task) }) {
@@ -1443,16 +1448,16 @@ private fun TaskDetailSheet(
             horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
         ) {
             OutlinedButton(onClick = { onEditTask(task) }) {
-                Text("편집")
+                Text(AgendaText.Common.edit)
             }
             TextButton(
                 onClick = { onDeleteTask(task) },
                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
             ) {
-                Text("삭제")
+                Text(AgendaText.Common.delete)
             }
             TextButton(onClick = onClose) {
-                Text("닫기")
+                Text(AgendaText.Common.close)
             }
         }
     }
@@ -1497,16 +1502,16 @@ private fun EventDetailSheet(
             horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
         ) {
             OutlinedButton(onClick = { onEditEvent(event) }) {
-                Text("편집")
+                Text(AgendaText.Common.edit)
             }
             TextButton(
                 onClick = { onDeleteEvent(event) },
                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
             ) {
-                Text("삭제")
+                Text(AgendaText.Common.delete)
             }
             TextButton(onClick = onClose) {
-                Text("닫기")
+                Text(AgendaText.Common.close)
             }
         }
     }
@@ -1550,11 +1555,14 @@ private fun QuickAddSheet(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "빠른 추가",
+            text = AgendaText.QuickAdd.title,
             style = MaterialTheme.typography.titleLarge
         )
         Text(
-            text = "${periodSummary(content.period)} · ${content.focusDate.format(DayFormatter)}",
+            text = AgendaText.QuickAdd.periodWithDate(
+                periodSummary(content.period),
+                content.focusDate.format(DayFormatter)
+            ),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -1564,12 +1572,12 @@ private fun QuickAddSheet(
             FilterChip(
                 selected = selectedType == QuickAddType.Task,
                 onClick = { selectedType = QuickAddType.Task },
-                label = { Text("할 일") }
+                label = { Text(AgendaText.QuickAdd.taskTab) }
             )
             FilterChip(
                 selected = selectedType == QuickAddType.Event,
                 onClick = { selectedType = QuickAddType.Event },
-                label = { Text("일정") }
+                label = { Text(AgendaText.QuickAdd.eventTab) }
             )
         }
 
@@ -1578,7 +1586,7 @@ private fun QuickAddSheet(
                 OutlinedTextField(
                     value = taskTitle,
                     onValueChange = { taskTitle = it },
-                    label = { Text("제목") },
+                    label = { Text(AgendaText.Common.titleLabel) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1587,7 +1595,7 @@ private fun QuickAddSheet(
                 OutlinedTextField(
                     value = taskNotes,
                     onValueChange = { taskNotes = it },
-                    label = { Text("메모 (선택)") },
+                    label = { Text(AgendaText.Common.notesOptionalLabel) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("quickAddTaskNotes")
@@ -1595,14 +1603,14 @@ private fun QuickAddSheet(
                 OutlinedTextField(
                     value = taskTime,
                     onValueChange = { taskTime = it },
-                    label = { Text("마감 시간 (HH:mm)") },
+                    label = { Text(AgendaText.TaskEdit.dueTimeLabel) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("quickAddTaskDueTime"),
                     supportingText = {
                         Text(
-                            text = "비워 두면 시간 없이 저장됩니다.",
+                            text = AgendaText.QuickAdd.dueTimeHint,
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
@@ -1618,9 +1626,9 @@ private fun QuickAddSheet(
                         modifier = Modifier.testTag("quickAddTaskReminderToggle")
                     )
                     Column {
-                        Text("리마인더 사용")
+                        Text(AgendaText.Common.reminderToggleLabel)
                         Text(
-                            text = "마감 전에 알림을 받아요.",
+                            text = AgendaText.Common.reminderIntro,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1632,7 +1640,7 @@ private fun QuickAddSheet(
                         onValueChange = { value ->
                             taskReminderMinutes = value.filter { it.isDigit() }
                         },
-                        label = { Text("알림 시점 (분)") },
+                        label = { Text(AgendaText.Common.reminderMinutesLabel) },
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1640,7 +1648,7 @@ private fun QuickAddSheet(
                         supportingText = {
                             val minutesText = taskReminderMinutes.ifBlank { "X" }
                             Text(
-                                text = "마감 $minutesText분 전에 알림이 울립니다.",
+                                text = AgendaText.Common.reminderMinutesSummary(minutesText),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1657,9 +1665,9 @@ private fun QuickAddSheet(
                             modifier = Modifier.testTag("quickAddTaskReminderSnooze")
                         )
                         Column {
-                            Text("스누즈 허용")
+                            Text(AgendaText.Common.allowSnooze)
                             Text(
-                                text = "알림에서 다시 알리기를 사용할 수 있어요.",
+                                text = AgendaText.Common.reminderSnoozeDescription,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1671,7 +1679,7 @@ private fun QuickAddSheet(
                 OutlinedTextField(
                     value = eventTitle,
                     onValueChange = { eventTitle = it },
-                    label = { Text("제목") },
+                    label = { Text(AgendaText.Common.titleLabel) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1680,7 +1688,7 @@ private fun QuickAddSheet(
                 OutlinedTextField(
                     value = eventLocation,
                     onValueChange = { eventLocation = it },
-                    label = { Text("위치 (선택)") },
+                    label = { Text(AgendaText.Common.locationOptionalLabel) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("quickAddEventLocation")
@@ -1688,7 +1696,7 @@ private fun QuickAddSheet(
                 OutlinedTextField(
                     value = eventStartTime,
                     onValueChange = { eventStartTime = it },
-                    label = { Text("시작 시간 (HH:mm)") },
+                    label = { Text(AgendaText.EventEdit.startTimeLabel) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1697,7 +1705,7 @@ private fun QuickAddSheet(
                 OutlinedTextField(
                     value = eventEndTime,
                     onValueChange = { eventEndTime = it },
-                    label = { Text("종료 시간 (HH:mm)") },
+                    label = { Text(AgendaText.EventEdit.endTimeLabel) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1706,7 +1714,7 @@ private fun QuickAddSheet(
                 OutlinedTextField(
                     value = eventNotes,
                     onValueChange = { eventNotes = it },
-                    label = { Text("메모 (선택)") },
+                    label = { Text(AgendaText.Common.notesOptionalLabel) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("quickAddEventNotes")
@@ -1722,9 +1730,9 @@ private fun QuickAddSheet(
                         modifier = Modifier.testTag("quickAddEventReminderToggle")
                     )
                     Column {
-                        Text("리마인더 사용")
+                        Text(AgendaText.Common.reminderToggleLabel)
                         Text(
-                            text = "시작 전에 알림을 받아요.",
+                            text = AgendaText.Common.reminderEventIntro,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1736,7 +1744,7 @@ private fun QuickAddSheet(
                         onValueChange = { value ->
                             eventReminderMinutes = value.filter { it.isDigit() }
                         },
-                        label = { Text("알림 시점 (분)") },
+                        label = { Text(AgendaText.Common.reminderMinutesLabel) },
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1744,14 +1752,14 @@ private fun QuickAddSheet(
                         supportingText = {
                             val minutesText = eventReminderMinutes.ifBlank { "X" }
                             Text(
-                                text = "시작 $minutesText분 전에 알림이 울립니다.",
+                                text = AgendaText.Common.reminderEventMinutesSummary(minutesText),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     )
                     Text(
-                        text = "이벤트 리마인더는 스누즈를 지원하지 않아요.",
+                        text = AgendaText.Common.reminderEventSnoozeWarning,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1776,7 +1784,7 @@ private fun QuickAddSheet(
                     onDismiss()
                 }
             }) {
-                Text("취소")
+                Text(AgendaText.Common.cancel)
             }
             Button(
                 onClick = {
@@ -1786,12 +1794,12 @@ private fun QuickAddSheet(
                         QuickAddType.Task -> {
                             val title = taskTitle.trim()
                             if (title.isEmpty()) {
-                                errorMessage = "제목을 입력해 주세요."
+                                errorMessage = AgendaText.Common.titleRequired
                                 return@Button
                             }
                             val dueTimeResult = taskTime.takeIf { it.isNotBlank() }?.let { value ->
                                 parseInputTime(value).onFailure {
-                                    errorMessage = "시간 형식은 HH:mm 이어야 해요."
+                                    errorMessage = AgendaText.QuickAdd.reminderTitleMissing
                                 }
                             }
                             if (errorMessage != null) return@Button
@@ -1802,11 +1810,11 @@ private fun QuickAddSheet(
                                 val minutesText = taskReminderMinutes.trim()
                                 val minutes = minutesText.toLongOrNull()
                                 if (minutes == null || minutes <= 0) {
-                                    errorMessage = "리마인더 시점은 1분 이상 입력해 주세요."
+                                    errorMessage = AgendaText.Common.reminderMinutesInvalid
                                     return@Button
                                 }
                                 if (dueTimeValue == null) {
-                                    errorMessage = "마감 시간을 설정해야 리마인더를 사용할 수 있어요."
+                                    errorMessage = AgendaText.QuickAdd.reminderMinutesMissing
                                     return@Button
                                 }
                                 listOf(Reminder(minutesBefore = minutes, allowSnooze = taskReminderAllowSnooze))
@@ -1828,7 +1836,7 @@ private fun QuickAddSheet(
                                     onDismiss()
                                 } else {
                                     errorMessage = result.exceptionOrNull()?.message
-                                        ?: "저장에 실패했습니다."
+                                        ?: AgendaText.Common.saveFailed
                                 }
                                 isSaving = false
                             }
@@ -1836,22 +1844,22 @@ private fun QuickAddSheet(
                         QuickAddType.Event -> {
                             val title = eventTitle.trim()
                             if (title.isEmpty()) {
-                                errorMessage = "제목을 입력해 주세요."
+                                errorMessage = AgendaText.Common.titleRequired
                                 return@Button
                             }
                             val startResult = parseInputTime(eventStartTime).onFailure {
-                                errorMessage = "시작 시간을 HH:mm 형식으로 입력하세요."
+                                errorMessage = AgendaText.QuickAdd.eventStartFormatError
                             }
                             if (errorMessage != null) return@Button
                             val endResult = parseInputTime(eventEndTime).onFailure {
-                                errorMessage = "종료 시간을 HH:mm 형식으로 입력하세요."
+                                errorMessage = AgendaText.QuickAdd.eventEndFormatError
                             }
                             if (errorMessage != null) return@Button
 
                             val startValue = startResult.getOrNull()
                             val endValue = endResult.getOrNull()
                             if (startValue == null || endValue == null) {
-                                errorMessage = "시간을 다시 확인해 주세요."
+                                errorMessage = AgendaText.QuickAdd.eventTimeCheck
                                 return@Button
                             }
 
@@ -1859,7 +1867,7 @@ private fun QuickAddSheet(
                                 val minutesText = eventReminderMinutes.trim()
                                 val minutes = minutesText.toLongOrNull()
                                 if (minutes == null || minutes <= 0) {
-                                    errorMessage = "리마인더 시점은 1분 이상 입력해 주세요."
+                                    errorMessage = AgendaText.Common.reminderMinutesInvalid
                                     return@Button
                                 }
                                 listOf(Reminder(minutesBefore = minutes, allowSnooze = false))
@@ -1883,7 +1891,7 @@ private fun QuickAddSheet(
                                     onDismiss()
                                 } else {
                                     errorMessage = result.exceptionOrNull()?.message
-                                        ?: "저장에 실패했습니다."
+                                        ?: AgendaText.Common.saveFailed
                                 }
                                 isSaving = false
                             }
@@ -1892,7 +1900,7 @@ private fun QuickAddSheet(
                 },
                 enabled = !isSaving
             ) {
-                Text(if (isSaving) "저장 중..." else "저장")
+                Text(if (isSaving) AgendaText.Common.saving else AgendaText.Common.save)
             }
         }
     }
@@ -1906,7 +1914,7 @@ private fun AgendaLoading() {
         modifier = Modifier
             .fillMaxSize()
             .semantics {
-                contentDescription = "일정을 불러오는 중입니다"
+                contentDescription = AgendaText.Agenda.loading
                 liveRegion = LiveRegionMode.Polite
             },
         contentAlignment = Alignment.Center
@@ -1923,13 +1931,13 @@ private fun AgendaError(error: Throwable) {
             .semantics {
                 role = Role.Alert
                 contentDescription = error.localizedMessage
-                    ?: "일정을 불러오는 중 문제가 발생했어요"
+                    ?: AgendaText.Agenda.loadFailed
                 liveRegion = LiveRegionMode.Assertive
             },
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = error.localizedMessage ?: "일정을 불러오는 중 문제가 발생했어요",
+            text = error.localizedMessage ?: AgendaText.Agenda.loadFailed,
             color = MaterialTheme.colorScheme.error,
             textAlign = TextAlign.Center
         )
@@ -1944,7 +1952,7 @@ private fun AgendaEmptyState(onQuickAddClick: () -> Unit = {}) {
             .padding(horizontal = 32.dp)
             .semantics {
                 liveRegion = LiveRegionMode.Polite
-                contentDescription = "아직 일정이 없어요. 빠른 추가 버튼으로 오늘의 첫 일정이나 할 일을 만들어 보세요."
+                contentDescription = AgendaText.Agenda.emptyAnnouncement
             },
         contentAlignment = Alignment.Center
     ) {
@@ -1958,32 +1966,32 @@ private fun AgendaEmptyState(onQuickAddClick: () -> Unit = {}) {
                 tint = MaterialTheme.colorScheme.primary
             )
             Text(
-                text = "아직 일정이 없어요",
+                text = AgendaText.Agenda.emptyTitle,
                 style = MaterialTheme.typography.titleMedium,
                 textAlign = TextAlign.Center
             )
             Text(
-                text = "빠른 추가 버튼으로 오늘의 첫 일정이나 할 일을 만들어 보세요.",
+                text = AgendaText.Agenda.emptyMessage,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
             Button(onClick = onQuickAddClick) {
-                Text("빠른 추가 열기")
+                Text(AgendaText.Agenda.emptyAction)
             }
         }
     }
 }
 
 private fun TaskStatus.displayName(): String = when (this) {
-    TaskStatus.Pending -> "대기 중"
-    TaskStatus.InProgress -> "진행 중"
-    TaskStatus.Completed -> "완료"
+    TaskStatus.Pending -> AgendaText.Agenda.statusPending
+    TaskStatus.InProgress -> AgendaText.Agenda.statusInProgress
+    TaskStatus.Completed -> AgendaText.Agenda.statusCompleted
 }
 
 private fun TaskStatus.toggleLabel(): String = when (this) {
-    TaskStatus.Completed -> "대기 중으로 표시"
-    else -> "완료로 표시"
+    TaskStatus.Completed -> AgendaText.Agenda.toggleToPending
+    else -> AgendaText.Agenda.markAsComplete
 }
 
 private fun eventTimeRange(event: CalendarEvent): String {
@@ -2016,37 +2024,37 @@ private fun RecurrenceBadge(recurrence: Recurrence) {
 private fun formatRecurrence(recurrence: Recurrence): String {
     val interval = recurrence.interval.coerceAtLeast(1)
     val (baseLabel, unitLabel) = when (recurrence.rule) {
-        RecurrenceRule.Daily -> "매일" to "일"
-        RecurrenceRule.Weekly -> "매주" to "주"
-        RecurrenceRule.Monthly -> "매월" to "달"
-        RecurrenceRule.Yearly -> "매년" to "년"
+        RecurrenceRule.Daily -> AgendaText.Recurrence.daily to AgendaText.Recurrence.dayUnit
+        RecurrenceRule.Weekly -> AgendaText.Recurrence.weekly to AgendaText.Recurrence.weekUnit
+        RecurrenceRule.Monthly -> AgendaText.Recurrence.monthly to AgendaText.Recurrence.monthUnit
+        RecurrenceRule.Yearly -> AgendaText.Recurrence.yearly to AgendaText.Recurrence.yearUnit
     }
 
     return if (interval == 1) {
         baseLabel
     } else {
-        "매 ${interval}${unitLabel}"
+        AgendaText.Recurrence.intervalLabel(interval, unitLabel)
     }
 }
 
 private fun AgendaUserMessage.toSnackbarMessage(): String = when (this) {
     is AgendaUserMessage.QuickAddSuccess -> when (type) {
-        QuickAddType.Task -> "할 일을 추가했어요."
-        QuickAddType.Event -> "일정을 추가했어요."
+        QuickAddType.Task -> AgendaText.QuickAddResult.taskSuccess
+        QuickAddType.Event -> AgendaText.QuickAddResult.eventSuccess
     }
     is AgendaUserMessage.QuickAddFailure -> reason
 }
 
 private fun AgendaTab.displayLabel(): String = when (this) {
-    AgendaTab.Daily -> "일간"
-    AgendaTab.Weekly -> "주간"
-    AgendaTab.Monthly -> "월간"
+    AgendaTab.Daily -> AgendaText.Agenda.agendaTabDaily
+    AgendaTab.Weekly -> AgendaText.Agenda.agendaTabWeekly
+    AgendaTab.Monthly -> AgendaText.Agenda.agendaTabMonthly
 }
 
 private fun AgendaTab.accessibleLabel(): String = when (this) {
-    AgendaTab.Daily -> "일간 아젠다 탭"
-    AgendaTab.Weekly -> "주간 아젠다 탭"
-    AgendaTab.Monthly -> "월간 아젠다 탭"
+    AgendaTab.Daily -> AgendaText.Accessibility.dailyTab
+    AgendaTab.Weekly -> AgendaText.Accessibility.weeklyTab
+    AgendaTab.Monthly -> AgendaText.Accessibility.monthlyTab
 }
 
 private fun periodLabel(period: AgendaPeriod): String = when (period) {
@@ -2211,11 +2219,11 @@ private fun LocalDate.startOfWeek(): LocalDate {
 
 private fun Task.accessibleDescription(): String {
     val statusText = when (status) {
-        TaskStatus.Pending -> "대기 중"
-        TaskStatus.InProgress -> "진행 중"
-        TaskStatus.Completed -> "완료"
+        TaskStatus.Pending -> AgendaText.Agenda.statusPending
+        TaskStatus.InProgress -> AgendaText.Agenda.statusInProgress
+        TaskStatus.Completed -> AgendaText.Agenda.statusCompleted
     }
-    return "$statusText 할 일: $title"
+    return AgendaText.Agenda.accessibleTask(statusText, title)
 }
 
 @Composable
