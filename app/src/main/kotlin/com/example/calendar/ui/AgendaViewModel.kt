@@ -76,6 +76,73 @@ class AgendaViewModel(
         }
     }
 
+    suspend fun updateTask(
+        original: Task,
+        title: String,
+        description: String?,
+        dueAt: LocalDateTime?
+    ): Result<Task> {
+        return withContext(viewModelScope.coroutineContext) {
+            runCatching {
+                val normalizedTitle = title.trim()
+                require(normalizedTitle.isNotEmpty()) { "제목을 입력해 주세요." }
+
+                val sanitizedDescription = description?.trim().takeIf { !it.isNullOrBlank() }
+                val updated = original.copy(
+                    title = normalizedTitle,
+                    description = sanitizedDescription,
+                    dueAt = dueAt
+                )
+
+                reminderOrchestrator.cancelForTask(original)
+                taskRepository.upsert(updated)
+
+                if (!updated.status.isDone() && updated.dueAt != null) {
+                    reminderOrchestrator.scheduleForTask(updated)
+                }
+
+                _state.update { it.updateTask(updated) }
+                updated
+            }
+        }
+    }
+
+    suspend fun updateEvent(
+        original: CalendarEvent,
+        title: String,
+        description: String?,
+        location: String?,
+        start: LocalDateTime,
+        end: LocalDateTime
+    ): Result<CalendarEvent> {
+        return withContext(viewModelScope.coroutineContext) {
+            runCatching {
+                val normalizedTitle = title.trim()
+                require(normalizedTitle.isNotEmpty()) { "제목을 입력해 주세요." }
+
+                require(!end.isBefore(start)) { "종료 시간은 시작 시간 이후여야 합니다." }
+
+                val sanitizedDescription = description?.trim().takeIf { !it.isNullOrBlank() }
+                val sanitizedLocation = location?.trim().takeIf { !it.isNullOrBlank() }
+
+                val updated = original.copy(
+                    title = normalizedTitle,
+                    description = sanitizedDescription,
+                    location = sanitizedLocation,
+                    start = start,
+                    end = end
+                )
+
+                reminderOrchestrator.cancelForEvent(original)
+                eventRepository.upsert(updated)
+                reminderOrchestrator.scheduleForEvent(updated)
+
+                _state.update { it.updateEvent(updated) }
+                updated
+            }
+        }
+    }
+
     fun cycleCompletedTaskFilter() {
         _state.update { current ->
             current.copy(
@@ -232,6 +299,20 @@ data class AgendaUiState(
             if (existing.id == task.id) task else existing
         }
         return copy(snapshot = current.copy(tasks = updatedTasks))
+    }
+
+    fun updateEvent(event: CalendarEvent): AgendaUiState {
+        val current = snapshot ?: return this
+        var replaced = false
+        val updatedEvents = current.events.map { existing ->
+            if (!replaced && existing.id == event.id) {
+                replaced = true
+                event
+            } else {
+                existing
+            }
+        }
+        return copy(snapshot = current.copy(events = updatedEvents))
     }
 
     fun removeTask(id: java.util.UUID): AgendaUiState {
