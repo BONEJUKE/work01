@@ -1,10 +1,9 @@
 # Merge Verification
 
-This note captures the checks performed after merging the latest feature work for recurrence exceptions,
-reminder quick actions, and the notification permission prompt tracker.
+This note captures the checks performed after reapplying the Korean-only resources and validating that the merge resolved
+without regressions.
 
 ## Repository state
-- Current HEAD: `66c9ed3601f0697c57128e9ec53c731c2a97f54b` ("Add recurrence exceptions and reminder quick actions").
 - Working tree status: clean (`git status -sb`).
 - No conflict markers detected within the workspace (`rg '<<<<' -n`).
 
@@ -15,5 +14,7 @@ reminder quick actions, and the notification permission prompt tracker.
   `app/src/androidTest/kotlin/com/example/calendar/reminder/ReminderActionReceiverTest.kt`).
 - Notification permission prompt tracker and accessibility refinements landed (`app/src/main/kotlin/com/example/calendar/ui/NotificationPermissionPromptTracker.kt` and
   updates within the Compose agenda UI).
+- Korean notification resources restored for reminder actions and channels (`app/src/main/res/values/strings.xml` and
+  `app/src/main/kotlin/com/example/calendar/reminder/ReminderNotificationWorker.kt`).
 
 These checks confirm the merge applied the intended changes without leaving unresolved conflicts or missing artifacts.

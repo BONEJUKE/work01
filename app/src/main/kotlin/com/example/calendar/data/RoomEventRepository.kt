@@ -23,6 +23,6 @@ class RoomEventRepository(private val eventDao: CalendarEventDao) : EventReposit
     }
 
     private fun validateEvent(event: CalendarEvent) {
-        require(!event.end.isBefore(event.start)) { "Event end time must be after start time" }
+        require(!event.end.isBefore(event.start)) { "이벤트 종료 시간은 시작 시간 이후여야 합니다." }
     }
 }

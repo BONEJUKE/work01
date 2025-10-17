@@ -105,12 +105,15 @@ class ReminderNotificationWorker(
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
 
+        val channelName = applicationContext.getString(R.string.reminder_notification_channel_name)
+        val channelDescription = applicationContext.getString(R.string.reminder_notification_channel_description)
+
         val channel = NotificationChannel(
             CHANNEL_ID,
-            CHANNEL_NAME,
+            channelName,
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = CHANNEL_DESCRIPTION
+            description = channelDescription
         }
 
         val manager = applicationContext.getSystemService(NotificationManager::class.java)
@@ -150,8 +153,6 @@ class ReminderNotificationWorker(
 
     companion object {
         private const val CHANNEL_ID = "calendar_reminders"
-        private const val CHANNEL_NAME = "Calendar reminders"
-        private const val CHANNEL_DESCRIPTION = "Notifications for scheduled calendar reminders"
 
         private const val KEY_ID = "key_id"
         private const val KEY_TITLE = "key_title"
