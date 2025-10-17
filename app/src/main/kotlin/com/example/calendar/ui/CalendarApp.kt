@@ -54,6 +54,7 @@ fun CalendarApp(
 ) {
     CalendarTheme {
         val permissionController = rememberNotificationPermissionController()
+        val promptTracker = rememberNotificationPromptTracker()
         var dismissed by rememberSaveable { mutableStateOf(false) }
 
         LaunchedEffect(permissionController.shouldShowPrompt) {
@@ -62,11 +63,32 @@ fun CalendarApp(
             }
         }
 
-        val notificationCard: (@Composable () -> Unit)? = if (permissionController.shouldShowPrompt && !dismissed) {
+        LaunchedEffect(permissionController.isGranted) {
+            if (permissionController.isGranted) {
+                promptTracker.clearSuppression()
+            }
+        }
+
+        val notificationCard: (@Composable () -> Unit)? = if (
+            permissionController.shouldShowPrompt &&
+            !dismissed &&
+            promptTracker.shouldShow()
+        ) {
             {
                 NotificationPermissionCard(
                     controller = permissionController,
-                    onDismiss = { dismissed = true },
+                    onDismiss = {
+                        dismissed = true
+                        promptTracker.recordDismiss()
+                    },
+                    onRequestPermission = {
+                        promptTracker.recordInteraction()
+                        permissionController.requestPermission()
+                    },
+                    onOpenSettings = {
+                        promptTracker.recordInteraction()
+                        permissionController.openSettings()
+                    },
                     modifier = Modifier
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 )
@@ -89,6 +111,8 @@ fun CalendarApp(
 internal fun NotificationPermissionCard(
     controller: NotificationPermissionController,
     onDismiss: () -> Unit,
+    onRequestPermission: () -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -128,9 +152,9 @@ internal fun NotificationPermissionCard(
                 Button(
                     onClick = {
                         if (controller.canRequest) {
-                            controller.requestPermission()
+                            onRequestPermission()
                         } else {
-                            controller.openSettings()
+                            onOpenSettings()
                         }
                     }
                 ) {

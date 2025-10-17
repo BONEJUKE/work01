@@ -46,6 +46,17 @@ class InMemoryTaskRepository(
         }
     }
 
+    override suspend fun markComplete(id: UUID) {
+        state.update { current ->
+            val existing = current[id] ?: return@update current
+            if (existing.status == TaskStatus.Completed) {
+                current
+            } else {
+                current + (id to existing.copy(status = TaskStatus.Completed))
+            }
+        }
+    }
+
     override suspend fun delete(id: UUID) {
         state.update { current -> current - id }
     }

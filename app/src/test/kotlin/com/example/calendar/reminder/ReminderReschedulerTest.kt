@@ -24,7 +24,9 @@ class ReminderReschedulerTest {
                 title = "회의",
                 message = "15분 전에 알림",
                 deepLink = "app://task/1",
-                allowSnooze = true
+                allowSnooze = true,
+                taskId = "1",
+                baseId = "task-1"
             )
         )
         val fakeStore = FakeReminderStore(mutableMapOf("task-1" to listOf(storedReminder)))

@@ -22,6 +22,13 @@ class RoomTaskRepository(private val taskDao: TaskDao) : TaskRepository {
         taskDao.upsert(existing.toggleCompletion())
     }
 
+    override suspend fun markComplete(id: UUID) {
+        val existing = taskDao.findById(id) ?: return
+        if (existing.status != TaskStatus.Completed) {
+            taskDao.updateStatus(id, TaskStatus.Completed)
+        }
+    }
+
     override suspend fun delete(id: UUID) {
         taskDao.deleteById(id)
     }
