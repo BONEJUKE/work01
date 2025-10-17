@@ -27,6 +27,10 @@
             android:enabled="true"
             android:exported="false" />
         <receiver
+            android:name=".reminder.ReminderActionReceiver"
+            android:enabled="true"
+            android:exported="false" />
+        <receiver
             android:name=".reminder.ReminderBootReceiver"
             android:enabled="true"
             android:exported="false"

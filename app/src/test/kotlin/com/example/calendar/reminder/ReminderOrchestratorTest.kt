@@ -41,11 +41,14 @@ class ReminderOrchestratorTest {
         assertEquals("10분 전에 알림", first.payload.message)
         assertTrue(first.payload.allowSnooze)
         assertEquals("app://task/${task.id}", first.payload.deepLink)
+        assertEquals("task-${task.id}", first.payload.baseId)
+        assertEquals(task.id.toString(), first.payload.taskId)
 
         val second = scheduler.scheduled[1]
         assertEquals("task-${task.id}-1", second.id)
         assertEquals(dueAt.minusMinutes(60), second.triggerAt)
         assertFalse(second.payload.allowSnooze)
+        assertEquals("task-${task.id}", second.payload.baseId)
 
         val stored = store.read("task-${task.id}")
         assertEquals(2, stored.size)
@@ -97,6 +100,8 @@ class ReminderOrchestratorTest {
         assertEquals(start.minusMinutes(30), scheduled.triggerAt)
         assertFalse(scheduled.payload.allowSnooze)
         assertEquals("app://event/${event.id}", scheduled.payload.deepLink)
+        assertEquals("event-${event.id}", scheduled.payload.baseId)
+        assertEquals(null, scheduled.payload.taskId)
         assertEquals(1, store.read("event-${event.id}").size)
     }
 
@@ -151,7 +156,9 @@ class ReminderOrchestratorTest {
                         title = "Future",
                         message = "30분 전에 알림",
                         deepLink = "app://task/demo",
-                        allowSnooze = true
+                        allowSnooze = true,
+                        taskId = "demo",
+                        baseId = taskId
                     )
                 )
             )
@@ -167,7 +174,8 @@ class ReminderOrchestratorTest {
                         title = "Past",
                         message = "10분 전에 알림",
                         deepLink = "app://event/demo",
-                        allowSnooze = false
+                        allowSnooze = false,
+                        baseId = "event-demo"
                     )
                 )
             )
@@ -203,7 +211,9 @@ class ReminderOrchestratorTest {
                         title = "Old",
                         message = "old",
                         deepLink = "app://task/${task.id}",
-                        allowSnooze = true
+                        allowSnooze = true,
+                        taskId = task.id.toString(),
+                        baseId = baseId
                     )
                 )
             )

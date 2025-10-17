@@ -67,6 +67,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -581,7 +582,12 @@ private fun WeekdaySelector(
                         textAlign = TextAlign.Center
                     )
                 },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics {
+                        contentDescription = date.format(WeekdayAccessibilityFormatter)
+                        selected = date == focusedDay
+                    }
             )
         }
     }
@@ -1111,7 +1117,10 @@ private fun SectionTitle(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.semantics { role = Role.Header }
+        modifier = Modifier.semantics {
+            role = Role.Header
+            heading()
+        }
     )
 }
 
