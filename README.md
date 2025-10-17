@@ -8,6 +8,7 @@
 - `AgendaAggregator`가 기간별(일/주/월) 일정과 할 일을 통합해 반복 일정 전개, 예외 처리, 겹침 탐지를 수행합니다.【F:app/src/main/kotlin/com/example/calendar/scheduler/AgendaAggregator.kt†L16-L140】
 - Compose 기반 `AgendaRoute`/`AgendaScreen`이 탭 전환, 기간 이동, 상세 바텀 시트, 스와이프 삭제, 완료 상태/반복 항목 필터를 제공해 주요 상호작용을 모두 지원합니다.【F:app/src/main/kotlin/com/example/calendar/ui/agenda/AgendaScreen.kt†L82-L1180】
 - FAB에서 열리는 빠른 추가 시트가 최소 입력으로 새 할 일·일정을 생성하고, 성공/실패 스낵바와 상세 보기 연결까지 처리합니다.【F:app/src/main/kotlin/com/example/calendar/ui/agenda/AgendaScreen.kt†L232-L377】【F:app/src/main/kotlin/com/example/calendar/ui/AgendaViewModel.kt†L57-L152】
+- 빠른 추가 시트에서 리마인더 알림 시점과 스누즈 허용 여부를 직접 설정해 저장 즉시 오케스트레이션에 반영합니다.【F:app/src/main/kotlin/com/example/calendar/ui/agenda/AgendaScreen.kt†L1558-L1717】【F:app/src/main/kotlin/com/example/calendar/ui/AgendaViewModel.kt†L163-L211】
 - 상세 시트의 `편집` 버튼이 상위 `CalendarApp`의 전용 편집 시트로 연결되어 기존 일정·할 일을 바로 수정할 수 있습니다.【F:app/src/main/kotlin/com/example/calendar/ui/CalendarApp.kt†L20-L121】【F:app/src/main/kotlin/com/example/calendar/ui/agenda/EditSheets.kt†L1-L170】
 
 ### 2. 리마인더 시스템
@@ -26,10 +27,9 @@
 - Compose 계측 테스트가 빠른 추가 흐름과 알림 권한 카드 UI를 검증합니다.【F:app/src/androidTest/kotlin/com/example/calendar/ui/QuickAddFlowTest.kt†L8-L55】【F:app/src/androidTest/kotlin/com/example/calendar/ui/CalendarAppNotificationTest.kt†L8-L46】
 
 ## 남은 과제
-1. **리마인더 구성 UI** – 빠른 추가 시트가 제목/시간만 입력받고 리마인더 오프셋·스누즈 설정을 노출하지 않아, 요구사항에 있는 사용자 지정 리마인더 구성이 불가합니다.【F:app/src/main/kotlin/com/example/calendar/ui/agenda/AgendaScreen.kt†L1512-L1754】
-2. **현지화 리소스 확장** – 대부분의 UI 문구가 Compose 내부에 하드코딩되어 있어 문자열 리소스화와 다국어 지원이 필요합니다.【F:app/src/main/kotlin/com/example/calendar/ui/agenda/AgendaScreen.kt†L707-L1165】【F:app/src/main/res/values/strings.xml†L1-L8】
-3. **동기화·백엔드 연동** – `docs/sync-conflict-strategy.md`에 정의된 클라우드 동기화 정책은 설계만 존재하고 구현되지 않았습니다.【F:docs/sync-conflict-strategy.md†L1-L33】
-4. **접근성/시각 구조 정리** – Agenda 화면에 중복된 카드/리스트 컴포저블이 남아 있어 구조 단순화와 스크린 리더 QA가 필요합니다.【F:app/src/main/kotlin/com/example/calendar/ui/agenda/AgendaScreen.kt†L807-L1406】
+1. **현지화 리소스 확장** – 대부분의 UI 문구가 Compose 내부에 하드코딩되어 있어 문자열 리소스화와 다국어 지원이 필요합니다.【F:app/src/main/kotlin/com/example/calendar/ui/agenda/AgendaScreen.kt†L707-L1165】【F:app/src/main/res/values/strings.xml†L1-L8】
+2. **동기화·백엔드 연동** – `docs/sync-conflict-strategy.md`에 정의된 클라우드 동기화 정책은 설계만 존재하고 구현되지 않았습니다.【F:docs/sync-conflict-strategy.md†L1-L33】
+3. **접근성/시각 구조 정리** – Agenda 화면에 중복된 카드/리스트 컴포저블이 남아 있어 구조 단순화와 스크린 리더 QA가 필요합니다.【F:app/src/main/kotlin/com/example/calendar/ui/agenda/AgendaScreen.kt†L807-L1406】
 
 ## 실행 및 테스트 방법
 1. **의존성 설치**: Android Studio에서 Gradle 동기화를 수행하거나 CLI에서 `./gradlew tasks`로 래퍼 동작을 확인합니다.

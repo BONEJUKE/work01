@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.calendar.data.AgendaPeriod
 import com.example.calendar.data.CalendarEvent
 import com.example.calendar.data.EventRepository
+import com.example.calendar.data.Reminder
 import com.example.calendar.data.Task
 import com.example.calendar.data.TaskRepository
 import com.example.calendar.reminder.ReminderOrchestrator
@@ -168,7 +169,8 @@ class AgendaViewModel(
         focusDate: LocalDate,
         period: AgendaPeriod,
         description: String?,
-        dueTime: LocalTime?
+        dueTime: LocalTime?,
+        reminders: List<Reminder>
     ): Result<Task> {
         return withContext(viewModelScope.coroutineContext) {
             runCatching {
@@ -177,13 +179,16 @@ class AgendaViewModel(
 
                 val sanitizedDescription = description?.trim().takeIf { !it.isNullOrBlank() }
                 val dueAt = dueTime?.let { LocalDateTime.of(focusDate, it) }
+                require(reminders.all { it.minutesBefore > 0 }) { "리마인더 시점은 1분 이상이어야 합니다." }
+                require(dueAt != null || reminders.isEmpty()) { "마감 시간을 설정해야 리마인더를 사용할 수 있어요." }
                 val targetPeriod = resolvePeriodForQuickAdd(period, focusDate)
 
                 val task = Task(
                     title = normalizedTitle,
                     description = sanitizedDescription,
                     dueAt = dueAt,
-                    period = targetPeriod
+                    period = targetPeriod,
+                    reminders = reminders
                 )
 
                 taskRepository.upsert(task)
@@ -214,7 +219,8 @@ class AgendaViewModel(
         description: String?,
         location: String?,
         startTime: LocalTime,
-        endTime: LocalTime
+        endTime: LocalTime,
+        reminders: List<Reminder>
     ): Result<CalendarEvent> {
         return withContext(viewModelScope.coroutineContext) {
             runCatching {
@@ -226,13 +232,15 @@ class AgendaViewModel(
                 val start = LocalDateTime.of(focusDate, startTime)
                 val end = LocalDateTime.of(focusDate, endTime)
                 require(!end.isBefore(start)) { "종료 시간이 시작 시간보다 빠를 수 없습니다." }
+                require(reminders.all { it.minutesBefore > 0 }) { "리마인더 시점은 1분 이상이어야 합니다." }
 
                 val event = CalendarEvent(
                     title = normalizedTitle,
                     description = sanitizedDescription,
                     start = start,
                     end = end,
-                    location = sanitizedLocation
+                    location = sanitizedLocation,
+                    reminders = reminders
                 )
 
                 eventRepository.upsert(event)
