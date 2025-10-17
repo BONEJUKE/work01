@@ -143,17 +143,10 @@ private fun List<CalendarEvent>.expandRecurringInstances(
 
         while (occurrenceIndex < maxOccurrences && currentStart < endBoundaryExclusive) {
             if (currentEnd > startBoundary) {
-                val override = event.recurrenceExceptions.firstOrNull { exception ->
-                    exception.matches(currentStart)
-                }
-                val occurrence = if (override != null) {
-                    event.applyOverride(override, currentStart, currentEnd)
-                } else {
-                    event.copy(start = currentStart, end = currentEnd)
-                }
-                if (occurrence != null) {
-                    expanded += occurrence
-                }
+                expanded += event.copy(
+                    start = currentStart,
+                    end = currentEnd
+                )
             }
             occurrenceIndex += 1
             if (occurrenceIndex >= maxOccurrences) break

@@ -107,7 +107,6 @@ private val DayFormatter = DateTimeFormatter.ofPattern("yyyy년 M월 d일 (E)", 
 private val WeekFormatter = DateTimeFormatter.ofPattern("M월 d일", Locale.KOREAN)
 private val MonthFormatter = DateTimeFormatter.ofPattern("yyyy년 M월", Locale.KOREAN)
 private val WeekdayChipFormatter = DateTimeFormatter.ofPattern("E d일", Locale.KOREAN)
-private val WeekdayAccessibilityFormatter = DateTimeFormatter.ofPattern("M월 d일 EEEE", Locale.KOREAN)
 private val DateTimeDetailFormatter = DateTimeFormatter.ofPattern("yyyy년 M월 d일 a h시 mm분", Locale.KOREAN)
 private val TimeOnlyFormatter = DateTimeFormatter.ofPattern("a h시 mm분", Locale.KOREAN)
 
