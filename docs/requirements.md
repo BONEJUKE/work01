@@ -23,11 +23,11 @@
 
 ## Data persistence & sync
 - Local storage uses Room with Flow/LiveData streams for UI updates.
-- Optional cloud sync via Firebase or a future backend service keeps devices in sync.
+- The app is offline-first and does not plan to integrate cloud sync; limited time drift checks ensure reminders stay reliable.
 
-## Accessibility & localization
+## Accessibility & copy guidelines
 - All interactions support TalkBack and dynamic font sizing.
-- Internationalization uses string resources to allow Korean/English translation.
+- Agenda copy is centralized so that labels and accessibility descriptions stay consistent in the single supported locale.
 
 # Non-functional requirements
 - Follow Material 3 guidelines for visual design.
