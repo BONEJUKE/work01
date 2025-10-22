@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -55,6 +56,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -897,28 +899,24 @@ private fun AgendaList(
             )
         }
         item {
-            SectionTitle(text = AgendaText.Agenda.eventsSectionTitle)
-        }
-        item {
-            AgendaFilterRow(
-                filters = filters,
-                onToggleShowRecurringEvents = onToggleShowRecurringEvents,
-                onCycleCompletedTaskFilter = onCycleCompletedTaskFilter
-            )
-        }
-        hiddenSummary?.let { message ->
-            item {
-                FilterNotice(message = message)
-            }
-        }
-        if (visibleEvents.isEmpty()) {
-            item {
-                EmptySectionMessage(message = AgendaText.Agenda.noEvents)
-            }
-        } else {
-            items(
+            AgendaSection(
+                title = AgendaText.Agenda.eventsSectionTitle,
+                contentDescription = AgendaText.Agenda.sectionHeadingDescription(
+                    AgendaText.Agenda.eventsSectionTitle
+                ),
                 items = visibleEvents,
-                key = { "${'$'}{it.id}-${'$'}{it.start}" }
+                emptyMessage = AgendaText.Agenda.noEvents,
+                headerContent = {
+                    AgendaFilterRow(
+                        filters = filters,
+                        onToggleShowRecurringEvents = onToggleShowRecurringEvents,
+                        onCycleCompletedTaskFilter = onCycleCompletedTaskFilter
+                    )
+                    hiddenSummary?.let { message ->
+                        FilterNotice(message = message)
+                    }
+                },
+                itemKey = { event -> "${'$'}{event.id}-${'$'}{event.start}" }
             ) { event ->
                 val hasConflict = snapshot.conflictingEventIds.contains(event.id)
                 EventCard(
@@ -929,19 +927,63 @@ private fun AgendaList(
             }
         }
         item {
-            SectionTitle(text = AgendaText.Agenda.tasksSectionTitle)
-        }
-        if (visibleTasks.isEmpty()) {
-            item {
-                EmptySectionMessage(message = AgendaText.Agenda.noTasks)
-            }
-        } else {
-            items(visibleTasks, key = { it.id }) { task ->
+            AgendaSection(
+                title = AgendaText.Agenda.tasksSectionTitle,
+                contentDescription = AgendaText.Agenda.sectionHeadingDescription(
+                    AgendaText.Agenda.tasksSectionTitle
+                ),
+                items = visibleTasks,
+                emptyMessage = AgendaText.Agenda.noTasks,
+                itemKey = { task -> task.id }
+            ) { task ->
                 SwipeableTaskRow(
                     task = task,
                     onToggleTask = { onToggleTask(task) },
                     onTaskClick = { onTaskClick(task) }
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun <T> AgendaSection(
+    title: String,
+    contentDescription: String,
+    items: List<T>,
+    emptyMessage: String,
+    modifier: Modifier = Modifier,
+    headerContent: (@Composable ColumnScope.() -> Unit)? = null,
+    itemKey: ((T) -> Any)? = null,
+    itemContent: @Composable ColumnScope.(T) -> Unit
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.semantics {
+                role = Role.Header
+                heading()
+                this.contentDescription = contentDescription
+            }
+        )
+        headerContent?.invoke(this)
+        if (items.isEmpty()) {
+            EmptySectionMessage(message = emptyMessage)
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                items.forEach { item ->
+                    if (itemKey != null) {
+                        key(itemKey(item)) {
+                            itemContent(item)
+                        }
+                    } else {
+                        itemContent(item)
+                    }
+                }
             }
         }
     }
@@ -1116,18 +1158,6 @@ private fun FilterNotice(message: String) {
                 liveRegion = LiveRegionMode.Polite
                 contentDescription = message
             }
-    )
-}
-
-@Composable
-private fun SectionTitle(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.semantics {
-            role = Role.Header
-            heading()
-        }
     )
 }
 

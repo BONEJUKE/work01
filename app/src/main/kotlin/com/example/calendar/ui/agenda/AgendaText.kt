@@ -78,6 +78,7 @@ object AgendaText {
         fun hiddenCompletedTask(count: Int) = "완료된 할 일 ${count}건"
         fun hiddenPendingTask(count: Int) = "진행 중인 할 일 ${count}건"
         fun hiddenItems(details: String) = "필터로 숨겨진 항목: ${details}."
+        fun sectionHeadingDescription(title: String) = "${title} 섹션 제목"
         fun summaryIntro(title: String, period: String) = "${title}. ${period} 일정 요약."
         fun summaryTotals(total: Int, pending: Int, completed: Int) =
             "전체 일정 ${total}건, 진행 중인 할 일 ${pending}건, 완료된 할 일 ${completed}건입니다."
