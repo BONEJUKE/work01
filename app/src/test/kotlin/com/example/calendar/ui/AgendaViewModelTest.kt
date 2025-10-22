@@ -14,9 +14,14 @@ import com.example.calendar.reminder.ReminderScheduler
 import com.example.calendar.reminder.ReminderStore
 import com.example.calendar.reminder.StoredReminder
 import com.example.calendar.scheduler.AgendaAggregator
+import com.example.calendar.util.TimeSkewMonitor
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.Clock
+import java.time.Duration
+import java.time.Instant
+import java.time.ZoneOffset
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -38,6 +43,12 @@ class AgendaViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private val today = LocalDate.of(2024, 1, 15)
+    private val testClock: Clock = Clock.fixed(
+        Instant.parse("2024-01-15T00:00:00Z"),
+        ZoneOffset.UTC
+    )
+    private var referenceInstant: Instant? = null
+    private lateinit var timeSkewMonitor: TimeSkewMonitor
 
     private lateinit var task: Task
     private lateinit var event: CalendarEvent
@@ -104,12 +115,20 @@ class AgendaViewModelTest {
         scheduler = RecordingReminderScheduler()
         store = InMemoryReminderStore()
         val orchestrator = ReminderOrchestrator(scheduler, store)
+        referenceInstant = testClock.instant()
+        timeSkewMonitor = TimeSkewMonitor(
+            referenceTimeProvider = { referenceInstant },
+            tolerance = Duration.ofMinutes(5),
+            clock = testClock,
+            referenceRecorder = { instant -> referenceInstant = instant }
+        )
 
         viewModel = AgendaViewModel(
             aggregator = aggregator,
             reminderOrchestrator = orchestrator,
             taskRepository = taskRepository,
-            eventRepository = eventRepository
+            eventRepository = eventRepository,
+            timeSkewMonitor = timeSkewMonitor
         )
 
         viewModel.setPeriod(AgendaPeriod.Day(today))
@@ -193,6 +212,28 @@ class AgendaViewModelTest {
         assertEquals(listOf(monthTask), snapshot.tasks)
         assertEquals(listOf(monthEvent), snapshot.events)
         assertEquals(1, snapshot.pendingCount)
+    }
+
+    @Test
+    fun `time skew warning is emitted when difference exceeds tolerance`() = runTest(dispatcher) {
+        referenceInstant = testClock.instant().minus(Duration.ofMinutes(20))
+
+        viewModel.setPeriod(AgendaPeriod.Week(weekStart))
+        advanceUntilIdle()
+
+        val message = viewModel.state.value.userMessage
+        assertTrue(message is AgendaUserMessage.TimeSkewWarning)
+    }
+
+    @Test
+    fun `time skew warning is not emitted when within tolerance`() = runTest(dispatcher) {
+        referenceInstant = testClock.instant().minus(Duration.ofMinutes(2))
+
+        viewModel.setPeriod(AgendaPeriod.Week(weekStart))
+        advanceUntilIdle()
+
+        val message = viewModel.state.value.userMessage
+        assertFalse(message is AgendaUserMessage.TimeSkewWarning)
     }
 
     @Test

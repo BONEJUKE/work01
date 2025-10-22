@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Work01 Calendar</string>
+    <string name="reminder_action_complete">Complete</string>
+    <string name="reminder_action_snooze">Snooze</string>
+    <string name="reminder_notification_channel_name">Calendar reminders</string>
+    <string name="reminder_notification_channel_description">Stay informed about scheduled reminders for your events and tasks.</string>
+    <string name="time_skew_warning_ahead">Your device clock is %1$s ahead of the server time. Please verify your date and time settings.</string>
+    <string name="time_skew_warning_behind">Your device clock is %1$s behind the server time. Please verify your date and time settings.</string>
+</resources>

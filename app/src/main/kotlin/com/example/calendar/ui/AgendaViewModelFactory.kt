@@ -6,12 +6,14 @@ import com.example.calendar.data.EventRepository
 import com.example.calendar.data.TaskRepository
 import com.example.calendar.reminder.ReminderOrchestrator
 import com.example.calendar.scheduler.AgendaAggregator
+import com.example.calendar.util.TimeSkewMonitor
 
 class AgendaViewModelFactory(
     private val aggregator: AgendaAggregator,
     private val reminderOrchestrator: ReminderOrchestrator,
     private val taskRepository: TaskRepository,
-    private val eventRepository: EventRepository
+    private val eventRepository: EventRepository,
+    private val timeSkewMonitor: TimeSkewMonitor
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -20,7 +22,8 @@ class AgendaViewModelFactory(
                 aggregator = aggregator,
                 reminderOrchestrator = reminderOrchestrator,
                 taskRepository = taskRepository,
-                eventRepository = eventRepository
+                eventRepository = eventRepository,
+                timeSkewMonitor = timeSkewMonitor
             ) as T
         }
         throw IllegalArgumentException("알 수 없는 ViewModel 클래스입니다: ${'$'}{modelClass.name}")
