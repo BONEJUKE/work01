@@ -14,6 +14,7 @@
 
 ### 2. 리마인더 시스템
 - `RoomAppContainer`가 AlarmManager·WorkManager·SharedPreferences를 묶어 `ReminderOrchestrator`를 구성하고, 앱 전체에서 동일한 스케줄러 인스턴스를 사용합니다.【F:app/src/main/kotlin/com/example/calendar/RoomAppContainer.kt†L17-L75】
+- `TimeSkewMonitor`가 서버 기준 시각과 기기 시계를 비교해 허용 오차를 넘으면 `AgendaUserMessage.TimeSkewWarning`을 발행하고, Agenda 화면 스낵바가 앞·뒤로 얼마나 어긋났는지 알려줍니다.【F:app/src/main/kotlin/com/example/calendar/util/TimeSkewMonitor.kt†L1-L69】【F:app/src/main/kotlin/com/example/calendar/ui/AgendaViewModel.kt†L274-L315】【F:app/src/main/kotlin/com/example/calendar/ui/agenda/AgendaScreen.kt†L2043-L2084】
 - `ReminderNotificationWorker`와 `ReminderActionReceiver`가 완료/스누즈 빠른 액션, 딥링크, 스누즈 재예약을 처리해 알림 상호작용을 완성합니다.【F:app/src/main/kotlin/com/example/calendar/reminder/ReminderNotificationWorker.kt†L21-L129】【F:app/src/main/kotlin/com/example/calendar/reminder/ReminderActionReceiver.kt†L14-L88】
 - 기기 재부팅 시 `ReminderBootReceiver`가 저장된 리마인더를 복구해 알림 신뢰성을 유지합니다.【F:app/src/main/kotlin/com/example/calendar/reminder/ReminderBootReceiver.kt†L9-L71】
 
@@ -24,8 +25,10 @@
 
 ### 4. 테스트 커버리지
 - 도메인/리마인더 단위 테스트가 반복 일정 전개, 충돌 탐지, 알림 재예약을 검증합니다.【F:app/src/test/kotlin/com/example/calendar/scheduler/AgendaAggregatorTest.kt†L17-L124】【F:app/src/test/kotlin/com/example/calendar/reminder/ReminderReschedulerTest.kt†L13-L119】
+- `TimeSkewMonitorTest`와 `AgendaViewModelTest`가 시간 왜곡 감지를 검증하고 오차가 허용 범위를 넘을 때만 경고가 뜨는지 확인합니다.【F:app/src/test/kotlin/com/example/calendar/util/TimeSkewMonitorTest.kt†L1-L65】【F:app/src/test/kotlin/com/example/calendar/ui/AgendaViewModelTest.kt†L204-L237】
 - `AgendaViewModelTest`가 빠른 추가·필터링·삭제 로직을 확인합니다.【F:app/src/test/kotlin/com/example/calendar/ui/AgendaViewModelTest.kt†L33-L207】
 - Compose 계측 테스트가 빠른 추가 흐름과 알림 권한 카드 UI를 검증합니다.【F:app/src/androidTest/kotlin/com/example/calendar/ui/QuickAddFlowTest.kt†L8-L55】【F:app/src/androidTest/kotlin/com/example/calendar/ui/CalendarAppNotificationTest.kt†L8-L46】
+- 신규 `AgendaScreenTest` 시나리오가 TalkBack 포커스, 탭 상태 라벨, 필터 토글 등 주요 접근성 속성을 회귀 테스트합니다.【F:app/src/androidTest/kotlin/com/example/calendar/ui/agenda/AgendaScreenTest.kt†L46-L433】
 
 ## 남은 과제
 1. **Agenda UI 구조 개선** – Agenda 화면에 유사한 카드/리스트 컴포저블이 중복 선언되어 있어 구조 단순화와 스크린 리더 흐름 재점검이 필요합니다.【F:app/src/main/kotlin/com/example/calendar/ui/agenda/AgendaScreen.kt†L807-L1406】
