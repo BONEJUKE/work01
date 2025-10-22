@@ -736,9 +736,11 @@ private fun AgendaSnapshotContent(
     modifier: Modifier = Modifier
 ) {
     when (selectedTab) {
-        AgendaTab.Daily -> DayAgenda(
+        AgendaTab.Daily -> AgendaPeriodSection(
             snapshot = snapshot,
             filters = filters,
+            summaryTitle = AgendaText.Agenda.summaryDailyTitle,
+            summaryPeriod = DayFormatter.format(snapshot.rangeStart),
             onToggleTask = onToggleTask,
             onTaskClick = onTaskClick,
             onEventClick = onEventClick,
@@ -747,91 +749,49 @@ private fun AgendaSnapshotContent(
             modifier = modifier
         )
 
-        AgendaTab.Weekly -> WeekAgenda(
-            snapshot = snapshot,
-            filters = filters,
-            onToggleTask = onToggleTask,
-            onTaskClick = onTaskClick,
-            onEventClick = onEventClick,
-            onCycleCompletedTaskFilter = onCycleCompletedTaskFilter,
-            onToggleShowRecurringEvents = onToggleShowRecurringEvents,
-            modifier = modifier
-        )
-
-        AgendaTab.Monthly -> MonthAgenda(
-            snapshot = snapshot,
-            filters = filters,
-            onToggleTask = onToggleTask,
-            onTaskClick = onTaskClick,
-            onEventClick = onEventClick,
-            onCycleCompletedTaskFilter = onCycleCompletedTaskFilter,
-            onToggleShowRecurringEvents = onToggleShowRecurringEvents,
-            modifier = modifier
-        )
-    }
-}
-
-@Composable
-private fun DayAgenda(
-    snapshot: AgendaSnapshot,
-    filters: AgendaFilters,
-    onToggleTask: (Task) -> Unit,
-    onTaskClick: (Task) -> Unit,
-    onEventClick: (CalendarEvent) -> Unit,
-    onCycleCompletedTaskFilter: () -> Unit,
-    onToggleShowRecurringEvents: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    AgendaList(
-        snapshot = snapshot,
-        summaryTitle = AgendaText.Agenda.summaryDailyTitle,
-        summaryPeriod = DayFormatter.format(snapshot.rangeStart),
-        filters = filters,
-        onToggleTask = onToggleTask,
-        onTaskClick = onTaskClick,
-        onEventClick = onEventClick,
-        onCycleCompletedTaskFilter = onCycleCompletedTaskFilter,
-        onToggleShowRecurringEvents = onToggleShowRecurringEvents,
-        modifier = modifier
-    )
-}
-
-@Composable
-private fun WeekAgenda(
-    snapshot: AgendaSnapshot,
-    filters: AgendaFilters,
-    onToggleTask: (Task) -> Unit,
-    onTaskClick: (Task) -> Unit,
-    onEventClick: (CalendarEvent) -> Unit,
-    onCycleCompletedTaskFilter: () -> Unit,
-    onToggleShowRecurringEvents: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val periodLabel = buildString {
-        append(WeekFormatter.format(snapshot.rangeStart))
-        snapshot.rangeEnd.takeIf { it != snapshot.rangeStart }?.let { end ->
-            append(" ~ ")
-            append(WeekFormatter.format(end))
+        AgendaTab.Weekly -> {
+            val periodLabel = buildString {
+                append(WeekFormatter.format(snapshot.rangeStart))
+                snapshot.rangeEnd.takeIf { it != snapshot.rangeStart }?.let { end ->
+                    append(" ~ ")
+                    append(WeekFormatter.format(end))
+                }
+            }
+            AgendaPeriodSection(
+                snapshot = snapshot,
+                filters = filters,
+                summaryTitle = AgendaText.Agenda.summaryWeeklyTitle,
+                summaryPeriod = periodLabel,
+                onToggleTask = onToggleTask,
+                onTaskClick = onTaskClick,
+                onEventClick = onEventClick,
+                onCycleCompletedTaskFilter = onCycleCompletedTaskFilter,
+                onToggleShowRecurringEvents = onToggleShowRecurringEvents,
+                modifier = modifier
+            )
         }
+
+        AgendaTab.Monthly -> AgendaPeriodSection(
+            snapshot = snapshot,
+            filters = filters,
+            summaryTitle = AgendaText.Agenda.summaryMonthlyTitle,
+            summaryPeriod = MonthFormatter.format(snapshot.rangeStart),
+            onToggleTask = onToggleTask,
+            onTaskClick = onTaskClick,
+            onEventClick = onEventClick,
+            onCycleCompletedTaskFilter = onCycleCompletedTaskFilter,
+            onToggleShowRecurringEvents = onToggleShowRecurringEvents,
+            modifier = modifier
+        )
     }
-    AgendaList(
-        snapshot = snapshot,
-        summaryTitle = AgendaText.Agenda.summaryWeeklyTitle,
-        summaryPeriod = periodLabel,
-        filters = filters,
-        onToggleTask = onToggleTask,
-        onTaskClick = onTaskClick,
-        onEventClick = onEventClick,
-        onCycleCompletedTaskFilter = onCycleCompletedTaskFilter,
-        onToggleShowRecurringEvents = onToggleShowRecurringEvents,
-        modifier = modifier
-    )
 }
 
 @Composable
-private fun MonthAgenda(
+private fun AgendaPeriodSection(
     snapshot: AgendaSnapshot,
     filters: AgendaFilters,
+    summaryTitle: String,
+    summaryPeriod: String,
     onToggleTask: (Task) -> Unit,
     onTaskClick: (Task) -> Unit,
     onEventClick: (CalendarEvent) -> Unit,
@@ -839,18 +799,23 @@ private fun MonthAgenda(
     onToggleShowRecurringEvents: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val monthLabel = MonthFormatter.format(snapshot.rangeStart)
+    val summaryHeadingModifier = Modifier.semantics {
+        role = Role.Header
+        heading()
+        contentDescription = AgendaText.Agenda.summaryIntro(summaryTitle, summaryPeriod)
+    }
     AgendaList(
         snapshot = snapshot,
-        summaryTitle = AgendaText.Agenda.summaryMonthlyTitle,
-        summaryPeriod = monthLabel,
+        summaryTitle = summaryTitle,
+        summaryPeriod = summaryPeriod,
         filters = filters,
         onToggleTask = onToggleTask,
         onTaskClick = onTaskClick,
         onEventClick = onEventClick,
         onCycleCompletedTaskFilter = onCycleCompletedTaskFilter,
         onToggleShowRecurringEvents = onToggleShowRecurringEvents,
-        modifier = modifier
+        modifier = modifier,
+        summaryModifier = summaryHeadingModifier
     )
 }
 
@@ -865,7 +830,8 @@ private fun AgendaList(
     onEventClick: (CalendarEvent) -> Unit,
     onCycleCompletedTaskFilter: () -> Unit,
     onToggleShowRecurringEvents: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    summaryModifier: Modifier = Modifier
 ) {
     val visibleEvents = remember(snapshot.events, filters.showRecurringEvents) {
         if (filters.showRecurringEvents) snapshot.events else snapshot.events.filter { it.recurrence == null }
@@ -895,7 +861,8 @@ private fun AgendaList(
                 filters = filters,
                 visibleEventCount = visibleEvents.size,
                 visibleTaskCount = visibleTasks.size,
-                hiddenRecurringCount = hiddenRecurringCount
+                hiddenRecurringCount = hiddenRecurringCount,
+                modifier = summaryModifier
             )
         }
         item {
