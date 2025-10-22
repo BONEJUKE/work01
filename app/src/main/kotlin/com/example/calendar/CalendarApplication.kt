@@ -5,6 +5,7 @@ import com.example.calendar.data.EventRepository
 import com.example.calendar.data.TaskRepository
 import com.example.calendar.reminder.ReminderOrchestrator
 import com.example.calendar.scheduler.AgendaAggregator
+import com.example.calendar.util.TimeSkewMonitor
 
 class CalendarApplication : Application() {
     lateinit var container: AppContainer
@@ -21,4 +22,5 @@ interface AppContainer {
     val eventRepository: EventRepository
     val reminderOrchestrator: ReminderOrchestrator
     val agendaAggregator: AgendaAggregator
+    val timeSkewMonitor: TimeSkewMonitor
 }

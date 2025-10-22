@@ -15,7 +15,8 @@ class MainActivity : ComponentActivity() {
             aggregator = app.container.agendaAggregator,
             reminderOrchestrator = app.container.reminderOrchestrator,
             taskRepository = app.container.taskRepository,
-            eventRepository = app.container.eventRepository
+            eventRepository = app.container.eventRepository,
+            timeSkewMonitor = app.container.timeSkewMonitor
         )
     }
 

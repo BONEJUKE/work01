@@ -11,11 +11,15 @@ import com.example.calendar.data.TaskRepository
 import com.example.calendar.reminder.ReminderOrchestrator
 import com.example.calendar.scheduler.AgendaAggregator
 import com.example.calendar.scheduler.AgendaSnapshot
+import com.example.calendar.util.TimeSkewDirection
+import com.example.calendar.util.TimeSkewMonitor
+import com.example.calendar.util.TimeSkewResult
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.temporal.TemporalAdjusters
+import java.time.Duration
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,7 +36,8 @@ class AgendaViewModel(
     private val aggregator: AgendaAggregator,
     private val reminderOrchestrator: ReminderOrchestrator,
     private val taskRepository: TaskRepository,
-    private val eventRepository: EventRepository
+    private val eventRepository: EventRepository,
+    private val timeSkewMonitor: TimeSkewMonitor
 ) : ViewModel() {
 
     private val _period = MutableStateFlow<AgendaPeriod>(AgendaPeriod.Day(java.time.LocalDate.now()))
@@ -271,6 +276,7 @@ class AgendaViewModel(
             .flatMapLatest { period ->
                 aggregator.observeAgenda(period)
                     .onStart {
+                        maybeNotifyTimeSkew()
                         _state.value = _state.value.copy(
                             isLoading = true,
                             error = null
@@ -291,6 +297,24 @@ class AgendaViewModel(
                 )
             }
             .launchIn(viewModelScope)
+    }
+
+    private suspend fun maybeNotifyTimeSkew() {
+        val result = runCatching { timeSkewMonitor.evaluate() }.getOrNull() ?: return
+        if (result is TimeSkewResult.SkewExceeded) {
+            _state.update { current ->
+                if (current.userMessage is AgendaUserMessage.TimeSkewWarning) {
+                    current
+                } else {
+                    current.copy(
+                        userMessage = AgendaUserMessage.TimeSkewWarning(
+                            difference = result.difference,
+                            direction = result.direction
+                        )
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -374,4 +398,5 @@ enum class QuickAddType {
 sealed class AgendaUserMessage {
     data class QuickAddSuccess(val type: QuickAddType) : AgendaUserMessage()
     data class QuickAddFailure(val reason: String) : AgendaUserMessage()
+    data class TimeSkewWarning(val difference: Duration, val direction: TimeSkewDirection) : AgendaUserMessage()
 }

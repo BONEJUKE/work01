@@ -1,0 +1,14 @@
+<resources>
+    <plurals name="time_skew_hours">
+        <item quantity="one">%d시간</item>
+        <item quantity="other">%d시간</item>
+    </plurals>
+    <plurals name="time_skew_minutes">
+        <item quantity="one">%d분</item>
+        <item quantity="other">%d분</item>
+    </plurals>
+    <plurals name="time_skew_seconds">
+        <item quantity="one">%d초</item>
+        <item quantity="other">%d초</item>
+    </plurals>
+</resources>

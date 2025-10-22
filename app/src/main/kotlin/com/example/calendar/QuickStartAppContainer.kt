@@ -16,11 +16,15 @@ import android.content.Context.MODE_PRIVATE
 import com.example.calendar.reminder.ReminderOrchestrator
 import com.example.calendar.reminder.SharedPreferencesReminderStore
 import com.example.calendar.scheduler.AgendaAggregator
+import com.example.calendar.util.TimeSkewMonitor
+import java.time.Clock
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.temporal.TemporalAdjusters
+import java.time.Duration
+import java.time.Instant
 
 /**
  * Minimal container that wires the agenda UI to in-memory data so the app shows
@@ -30,6 +34,13 @@ import java.time.temporal.TemporalAdjusters
 class QuickStartAppContainer(
     private val context: Context
 ) : AppContainer {
+
+    companion object {
+        private const val TIME_REFERENCE_PREF = "calendar_time_reference"
+        private const val KEY_LAST_SYNC_EPOCH = "last_sync_epoch"
+    }
+
+    private val referenceClock: Clock = Clock.systemUTC()
 
     private val today: LocalDate = LocalDate.now()
     private val weekStart: LocalDate = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
@@ -107,6 +118,10 @@ class QuickStartAppContainer(
         )
     }
 
+    private val timeReferencePreferences by lazy {
+        context.getSharedPreferences(TIME_REFERENCE_PREF, MODE_PRIVATE)
+    }
+
     override val reminderOrchestrator: ReminderOrchestrator by lazy {
         ReminderOrchestrator(
             AndroidReminderScheduler(
@@ -120,6 +135,22 @@ class QuickStartAppContainer(
 
     override val agendaAggregator: AgendaAggregator by lazy {
         AgendaAggregator(taskRepository, eventRepository)
+    }
+
+    override val timeSkewMonitor: TimeSkewMonitor by lazy {
+        TimeSkewMonitor(
+            referenceTimeProvider = {
+                val stored = timeReferencePreferences.getLong(KEY_LAST_SYNC_EPOCH, 0L)
+                if (stored == 0L) null else Instant.ofEpochMilli(stored)
+            },
+            tolerance = Duration.ofMinutes(3),
+            clock = referenceClock,
+            referenceRecorder = { instant ->
+                timeReferencePreferences.edit()
+                    .putLong(KEY_LAST_SYNC_EPOCH, instant.toEpochMilli())
+                    .apply()
+            }
+        )
     }
 }
 

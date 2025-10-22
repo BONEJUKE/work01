@@ -76,11 +76,14 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
+import com.example.calendar.R
 import com.example.calendar.data.AgendaPeriod
 import com.example.calendar.data.CalendarEvent
 import com.example.calendar.data.Recurrence
@@ -96,7 +99,9 @@ import com.example.calendar.ui.AgendaViewModel
 import com.example.calendar.ui.CompletedTaskFilter
 import com.example.calendar.ui.QuickAddType
 import com.example.calendar.ui.theme.CalendarTheme
+import com.example.calendar.util.TimeSkewDirection
 import java.time.DayOfWeek
+import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -384,11 +389,12 @@ fun AgendaScreen(
     modifier: Modifier = Modifier
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarMessage = uiState.userMessage?.let { it.toSnackbarMessage() }
 
-    LaunchedEffect(uiState.userMessage) {
-        uiState.userMessage?.let { message ->
+    LaunchedEffect(snackbarMessage) {
+        snackbarMessage?.let { text ->
             snackbarHostState.showSnackbar(
-                message = message.toSnackbarMessage(),
+                message = text,
                 withDismissAction = true,
                 duration = SnackbarDuration.Short
             )
@@ -2067,12 +2073,47 @@ private fun formatRecurrence(recurrence: Recurrence): String {
     }
 }
 
+@Composable
 private fun AgendaUserMessage.toSnackbarMessage(): String = when (this) {
     is AgendaUserMessage.QuickAddSuccess -> when (type) {
         QuickAddType.Task -> AgendaText.QuickAddResult.taskSuccess
         QuickAddType.Event -> AgendaText.QuickAddResult.eventSuccess
     }
     is AgendaUserMessage.QuickAddFailure -> reason
+    is AgendaUserMessage.TimeSkewWarning -> {
+        val formatted = formatTimeSkewDifference(difference)
+        when (direction) {
+            TimeSkewDirection.DeviceAhead -> stringResource(
+                R.string.time_skew_warning_ahead,
+                formatted
+            )
+            TimeSkewDirection.DeviceBehind -> stringResource(
+                R.string.time_skew_warning_behind,
+                formatted
+            )
+        }
+    }
+}
+
+@Composable
+private fun formatTimeSkewDifference(duration: Duration): String {
+    val parts = mutableListOf<String>()
+    val hours = duration.toHours()
+    if (hours > 0) {
+        val hoursInt = hours.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        parts += pluralStringResource(R.plurals.time_skew_hours, hoursInt, hoursInt)
+    }
+    val minutes = duration.toMinutes() % 60
+    if (minutes > 0) {
+        val minutesInt = minutes.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        parts += pluralStringResource(R.plurals.time_skew_minutes, minutesInt, minutesInt)
+    }
+    if (parts.isEmpty()) {
+        val seconds = duration.seconds.coerceAtLeast(1)
+        val secondsInt = seconds.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        parts += pluralStringResource(R.plurals.time_skew_seconds, secondsInt, secondsInt)
+    }
+    return parts.joinToString(separator = " ")
 }
 
 private fun AgendaTab.displayLabel(): String = when (this) {
