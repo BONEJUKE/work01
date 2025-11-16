@@ -341,6 +341,9 @@ fun AgendaRoute(
         }
     }
 
+    // Close the AgendaRoute scope after rendering the modal sheet.
+}
+
 enum class AgendaTab {
     Daily,
     Weekly,
